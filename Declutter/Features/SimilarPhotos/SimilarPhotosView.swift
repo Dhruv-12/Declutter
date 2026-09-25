@@ -59,6 +59,9 @@ struct SimilarPhotosView: View {
 
     private var groupList: some View {
         ScrollView {
+            Color.clear.frame(height: 0)
+                .onAppear { similar.resultsShown() }
+
             VStack(alignment: .leading, spacing: 4) {
                 Text("\(similar.groups.count) groups · \(similar.extras.count) extra photos · \(ByteFormat.string(similar.extras.totalSize))")
                     .font(.subheadline.weight(.medium))

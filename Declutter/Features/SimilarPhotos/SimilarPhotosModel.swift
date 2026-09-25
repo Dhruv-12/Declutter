@@ -15,6 +15,9 @@ final class SimilarPhotosModel {
     private(set) var scannedCount = 0
     private(set) var scanDuration: TimeInterval?
     var selection: Set<String> = []
+    /// True until the user has seen the latest results. Extras are only pre-selected once they have,
+    /// so nothing they never looked at can end up in a cleanup.
+    private(set) var hasUnseenResults = false
 
     var strictness: MatchStrictness {
         didSet {
@@ -55,16 +58,24 @@ final class SimilarPhotosModel {
             groups = result.groups
             scannedCount = result.scannedCount
             scanDuration = Date.now.timeIntervalSince(start)
-            // Keep the best photo of each group and pre-select the rest.
-            selection = Set(result.groups.flatMap { $0.extras.map(\.id) })
+            selection = []
+            hasUnseenResults = !result.groups.isEmpty
             state = .done
         }
+    }
+
+    /// Called when the results are on screen: keep the best photo of each group and pre-select the rest.
+    func resultsShown() {
+        guard hasUnseenResults else { return }
+        hasUnseenResults = false
+        selection = Set(extras.map(\.id))
     }
 
     func cancelAndReset() {
         scanTask?.cancel()
         groups = []
         selection = []
+        hasUnseenResults = false
         state = .idle
     }
 
