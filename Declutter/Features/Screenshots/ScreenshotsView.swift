@@ -6,7 +6,7 @@ struct ScreenshotsView: View {
     @Environment(AppModel.self) private var model
     @State private var reviewPlan: CleanupPlan?
 
-    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 4)]
+    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 6)]
 
     private var items: [MediaItem] { model.screenshots }
 
@@ -16,14 +16,12 @@ struct ScreenshotsView: View {
         content
             .navigationTitle("Screenshots")
             .safeAreaInset(edge: .bottom) {
-                if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes) {
+                if !items.isEmpty {
+                    SelectionBar(count: selection.count, bytes: selectedBytes, singular: "screenshot", plural: "screenshots") {
                         reviewPlan = model.makePlan(for: [.screenshots])
                     }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.snappy, value: selection.isEmpty)
             .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
     }
 
@@ -31,12 +29,12 @@ struct ScreenshotsView: View {
         if !model.photoStatus.canRead {
             PhotoAccessNeededView()
         } else if model.isLoadingLibrary && items.isEmpty {
-            ProgressView("Finding screenshots…")
+            LoadingView(text: "Finding screenshots…")
         } else if items.isEmpty {
-            ContentUnavailableView(
-                "No Screenshots",
+            EmptyStateView(
                 systemImage: "camera.viewfinder",
-                description: Text("There are no screenshots to clean up.")
+                title: "No screenshots",
+                message: "Nothing to clear here. New screenshots will show up on this screen."
             )
         } else {
             grid
@@ -45,11 +43,8 @@ struct ScreenshotsView: View {
 
     private var grid: some View {
         ScrollView {
-            Text("\(items.count) screenshots · \(ByteFormat.string(items.totalSize))")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+            ScreenSummary(text: "\(items.count) screenshots · \(ByteFormat.string(items.totalSize))")
+                .padding(.top, Theme.gap)
 
             BulkActionBar {
                 let allSelected = items.allSatisfy { selection.contains($0.id) }
@@ -62,7 +57,7 @@ struct ScreenshotsView: View {
                     model.screenshotSelection = allSelected ? [] : Set(items.map(\.id))
                 }
                 BulkActionButton(
-                    title: "Delete all",
+                    title: "Review and delete all",
                     count: items.count,
                     bytes: items.totalSize,
                     systemImage: "trash",
@@ -72,9 +67,9 @@ struct ScreenshotsView: View {
                     reviewPlan = model.makeDeleteAllPlan(.screenshots)
                 }
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, Theme.gap)
 
-            LazyVGrid(columns: columns, spacing: 4, pinnedViews: .sectionHeaders) {
+            LazyVGrid(columns: columns, spacing: 6, pinnedViews: .sectionHeaders) {
                 ForEach(sections, id: \.title) { section in
                     Section {
                         ForEach(section.items) { item in
@@ -100,11 +95,14 @@ struct ScreenshotsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, Theme.page)
+            .padding(.bottom, Theme.spacing)
         }
+        .screenBackground()
     }
 
     private func toggle(_ id: String) {
+        Haptics.select()
         if selection.contains(id) {
             model.screenshotSelection.remove(id)
         } else {
@@ -138,13 +136,13 @@ private struct SectionHeader: View {
 
     var body: some View {
         HStack {
-            Text(title).font(.headline)
+            Text(title)
+                .font(.heading(.headline))
+                .foregroundStyle(Theme.pine)
             Spacer()
             SelectAllButton(allIDs: ids, selection: $selection)
-                .font(.subheadline)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(.bar)
+        .padding(.vertical, 10)
+        .background(Theme.mist)
     }
 }

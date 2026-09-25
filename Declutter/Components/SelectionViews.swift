@@ -252,3 +252,21 @@ struct ScreenSummary: View {
         .padding(.horizontal, Theme.page)
     }
 }
+
+/// Full-screen loading state.
+struct LoadingView: View {
+    let text: String
+
+    var body: some View {
+        VStack(spacing: Theme.spacing) {
+            ProgressView()
+                .controlSize(.large)
+                .tint(Theme.pine)
+            Text(text)
+                .font(.subheadline)
+                .foregroundStyle(Theme.secondaryText)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .screenBackground()
+    }
+}
