@@ -17,7 +17,10 @@ struct DashboardView: View {
 
                     VStack(spacing: 12) {
                         ForEach(CleanupCategory.allCases) { category in
-                            CategoryCard(category: category, summary: model.summary(for: category))
+                            NavigationLink(value: category) {
+                                CategoryCard(category: category, summary: model.summary(for: category))
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
 
@@ -31,10 +34,22 @@ struct DashboardView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Declutter")
+            .navigationDestination(for: CleanupCategory.self) { category in
+                destination(for: category)
+            }
             .refreshable {
                 model.refreshPermissions()
                 await model.reloadLibrary()
             }
+        }
+    }
+
+    @ViewBuilder private func destination(for category: CleanupCategory) -> some View {
+        switch category {
+        case .screenshots:
+            ScreenshotsView()
+        default:
+            ContentUnavailableView(category.title, systemImage: category.systemImage, description: Text("Coming soon."))
         }
     }
 }
@@ -168,5 +183,8 @@ struct CategoryCard: View {
         default:
             EmptyView()
         }
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(.tertiary)
     }
 }
