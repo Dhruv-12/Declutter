@@ -1,119 +1,110 @@
 import SwiftUI
 
 /// Shown after a cleanup: how much space was freed, what was removed, and lifetime totals.
+/// It stays still on purpose: the big moment plays on the home screen after "Back to home".
 struct SpaceFreedView: View {
     let result: CleanupResult
     let onDone: () -> Void
 
     @Environment(AppModel.self) private var model
     @AppStorage(LifetimeStats.bytesKey) private var lifetimeBytes = 0
-    @AppStorage(LifetimeStats.itemsKey) private var lifetimeItems = 0
-
-    @State private var shownBytes: Int64 = 0
-    @State private var appeared = false
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 28) {
-                ZStack {
-                    Circle()
-                        .fill(Color.accentColor.gradient)
-                        .frame(width: 110, height: 110)
-                        .shadow(color: .accentColor.opacity(0.4), radius: 16, y: 6)
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 48, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .symbolEffect(.bounce, value: appeared)
-                }
-                .scaleEffect(appeared ? 1 : 0.6)
-                .opacity(appeared ? 1 : 0)
-                .padding(.top, 32)
+            VStack(alignment: .leading, spacing: Theme.spacing * 1.5) {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(Theme.onMint)
+                    .frame(width: 72, height: 72)
+                    .background(Theme.mint, in: .circle)
+                    .accessibilityHidden(true)
+                    .padding(.top, 40)
 
-                VStack(spacing: 6) {
-                    Text(result.bytesFreed > 0 ? "Space Freed" : "All Done")
-                        .font(.title2.bold())
+                VStack(alignment: .leading, spacing: 4) {
                     if result.bytesFreed > 0 {
-                        Text(ByteFormat.string(shownBytes))
-                            .font(.system(size: 52, weight: .bold, design: .rounded))
-                            .foregroundStyle(.tint)
-                            .contentTransition(.numericText(value: Double(shownBytes)))
+                        Text(ByteFormat.string(result.bytesFreed))
+                            .font(.heroNumber)
+                            .foregroundStyle(Theme.mintText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                        Text("space freed")
+                            .font(.heading(.title3))
+                            .foregroundStyle(Theme.secondaryText)
+                    } else {
+                        Text("All done")
+                            .font(.heading(.largeTitle))
+                            .foregroundStyle(Theme.pine)
                     }
                 }
+                .accessibilityElement(children: .combine)
 
                 VStack(spacing: 0) {
                     if result.photosDeleted > 0 {
-                        SummaryRow(icon: "photo", tint: .indigo, title: "Photos removed", value: "\(result.photosDeleted)")
+                        SummaryRow(icon: "photo", title: "Photos removed", value: "\(result.photosDeleted)")
                     }
                     if result.videosDeleted > 0 {
-                        SummaryRow(icon: "video", tint: .pink, title: "Videos removed", value: "\(result.videosDeleted)")
+                        SummaryRow(icon: "video", title: "Videos removed", value: "\(result.videosDeleted)")
                     }
                     if result.contactsDeleted > 0 {
-                        SummaryRow(icon: "person.crop.circle", tint: .green, title: "Contacts removed", value: "\(result.contactsDeleted)")
+                        SummaryRow(icon: "person.crop.circle", title: "Contacts removed", value: "\(result.contactsDeleted)")
                     }
                     if let storage = model.storage {
-                        SummaryRow(icon: "internaldrive", tint: .gray, title: "Free on iPhone now", value: ByteFormat.string(storage.available))
+                        SummaryRow(icon: "internaldrive", title: "Free on iPhone now", value: ByteFormat.string(storage.available))
                     }
-                    SummaryRow(icon: "trophy", tint: .orange, title: "Freed with Declutter so far", value: ByteFormat.string(Int64(lifetimeBytes)))
+                    SummaryRow(icon: "sparkles", title: "Freed with Declutter so far", value: ByteFormat.string(Int64(lifetimeBytes)), isLast: true)
                 }
-                .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 16))
+                .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
 
                 if let error = result.contactsError {
                     Label("Contacts weren't deleted: \(error)", systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Theme.coralText)
                 }
 
                 if result.photosDeleted + result.videosDeleted > 0 {
-                    Label("Removed photos and videos are in Recently Deleted in the Photos app for 30 days. To get the space back now, open Photos › Recently Deleted and choose Delete All.", systemImage: "info.circle")
+                    Label("Removed photos and videos wait in Recently Deleted in the Photos app for 30 days. To get the space back now, open Photos, go to Recently Deleted and choose Delete All.", systemImage: "info.circle")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
-            .padding()
+            .padding(.horizontal, Theme.page)
         }
-        .background(Color(.systemGroupedBackground))
+        .screenBackground()
         .safeAreaInset(edge: .bottom) {
-            Button(action: onDone) {
-                Text("Done")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding()
-            .background(.bar)
+            Button("Back to home", action: onDone)
+                .buttonStyle(.primary)
+                .padding(.horizontal, Theme.page)
+                .padding(.vertical, 12)
+                .background(Theme.mist.ignoresSafeArea())
         }
-        .sensoryFeedback(.success, trigger: appeared)
-        .task {
-            withAnimation(.spring(duration: 0.5, bounce: 0.4)) { appeared = true }
-            try? await Task.sleep(for: .milliseconds(250))
-            withAnimation(.easeOut(duration: 1.0)) { shownBytes = result.bytesFreed }
-        }
+        .onAppear { Haptics.success() }
     }
 }
 
 private struct SummaryRow: View {
     let icon: String
-    let tint: Color
     let title: String
     let value: String
+    var isLast = false
 
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .foregroundStyle(tint)
+                .foregroundStyle(Theme.pine)
                 .frame(width: 28)
             Text(title)
+                .foregroundStyle(Theme.pine)
             Spacer()
             Text(value)
-                .font(.body.weight(.semibold))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .monospacedDigit()
+                .foregroundStyle(Theme.pine)
         }
-        .padding()
+        .padding(Theme.spacing)
         .overlay(alignment: .bottom) {
-            Divider().padding(.leading, 56)
+            if !isLast { Theme.hairline.frame(height: 1).padding(.leading, 56) }
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

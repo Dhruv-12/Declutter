@@ -18,7 +18,7 @@ struct LargeVideosView: View {
 
     var body: some View {
         content
-            .navigationTitle("Large Videos")
+            .navigationTitle("Large videos")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {

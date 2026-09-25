@@ -15,7 +15,7 @@ struct ReviewView: View {
     @State private var errorMessage: String?
     @State private var result: CleanupResult?
 
-    private let columns = [GridItem(.adaptive(minimum: 76), spacing: 4)]
+    private let columns = [GridItem(.adaptive(minimum: 76), spacing: 6)]
 
     private var media: [MediaItem] {
         plan.mediaSections.flatMap(\.items).filter { !kept.contains($0.id) }
@@ -33,7 +33,6 @@ struct ReviewView: View {
                 model.returnHome(after: result)
                 dismiss()
             }
-                .transition(.opacity)
         } else {
             review
         }
@@ -42,7 +41,7 @@ struct ReviewView: View {
     private var review: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: Theme.spacing * 1.5) {
                     header
                     ForEach(plan.mediaSections) { section in
                         mediaSection(section)
@@ -52,10 +51,11 @@ struct ReviewView: View {
                     }
                     notes
                 }
-                .padding()
+                .padding(.horizontal, Theme.page)
+                .padding(.vertical, Theme.spacing)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle("Review")
+            .screenBackground()
+            .navigationTitle("Review and delete")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -70,11 +70,11 @@ struct ReviewView: View {
                 isPresented: $confirmingContacts,
                 titleVisibility: .visible
             ) {
-                Button("Delete \(itemCount) Items", role: .destructive) { delete() }
+                Button("Delete \(itemCount) item\(itemCount == 1 ? "" : "s")", role: .destructive) { delete() }
             } message: {
                 Text("Contacts can't be recovered after they're deleted.")
             }
-            .alert("Couldn't Delete", isPresented: Binding(
+            .alert("Couldn't delete", isPresented: Binding(
                 get: { errorMessage != nil },
                 set: { if !$0 { errorMessage = nil } }
             )) {
@@ -89,23 +89,23 @@ struct ReviewView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("You'll free up")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
             Text(ByteFormat.string(media.totalSize))
-                .font(.system(size: 44, weight: .bold, design: .rounded))
-                .foregroundStyle(.tint)
+                .font(.bigNumber)
+                .foregroundStyle(Theme.pine)
                 .contentTransition(.numericText())
+            Text("will be freed")
+                .font(.heading(.headline))
+                .foregroundStyle(Theme.secondaryText)
             Text(countsText)
-                .font(.subheadline.weight(.medium))
-            Text("Tap anything you want to keep.")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Theme.pine)
+                .padding(.top, 6)
+            Text("Everything below will be deleted. Tap anything you want to keep.")
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(20)
-        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 20))
-        .animation(.default, value: media.count)
+        .card(padding: 20)
+        .tapAnimation(value: kept)
     }
 
     private func mediaSection(_ section: CleanupPlan.MediaSection) -> some View {
@@ -120,10 +120,10 @@ struct ReviewView: View {
                     "In \(plan.fullySelectedGroups) group\(plan.fullySelectedGroups == 1 ? "" : "s"), every photo is selected, so none of those shots would be kept.",
                     systemImage: "exclamationmark.triangle.fill"
                 )
-                .font(.caption)
-                .foregroundStyle(.orange)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(Theme.coralText)
             }
-            LazyVGrid(columns: columns, spacing: 4) {
+            LazyVGrid(columns: columns, spacing: 6) {
                 ForEach(section.items) { item in
                     SelectableThumbnail(
                         asset: item.asset,
@@ -153,8 +153,7 @@ struct ReviewView: View {
                         .onTapGesture { toggleKeep(contact.id) }
                 }
             }
-            .padding()
-            .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 16))
+            .card()
         }
     }
 
@@ -165,34 +164,39 @@ struct ReviewView: View {
             }
             if !plan.contacts.isEmpty {
                 Label("Deleted contacts can't be recovered.", systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.coralText)
             }
         }
         .font(.footnote)
-        .foregroundStyle(.secondary)
+        .foregroundStyle(Theme.secondaryText)
     }
 
     private var deleteBar: some View {
         Button(role: .destructive) {
-            if contacts.isEmpty { delete() } else { confirmingContacts = true }
-        } label: {
-            Group {
-                if isDeleting {
-                    ProgressView().tint(.white)
-                } else {
-                    Text(itemCount == 0 ? "Nothing Selected" : "Delete \(itemCount) Item\(itemCount == 1 ? "" : "s")")
-                }
+            if contacts.isEmpty {
+                delete()
+            } else {
+                Haptics.warning()
+                confirmingContacts = true
             }
-            .font(.headline)
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 6)
+        } label: {
+            if isDeleting {
+                ProgressView().tint(Theme.onCoral)
+            } else {
+                Text(itemCount == 0 ? "Nothing to delete" : "Delete \(itemCount) item\(itemCount == 1 ? "" : "s")" + (media.isEmpty ? "" : " · \(ByteFormat.string(media.totalSize))"))
+                    .contentTransition(.numericText())
+            }
         }
-        .buttonStyle(.borderedProminent)
-        .tint(.red)
-        .controlSize(.large)
+        .buttonStyle(.destructive)
         .disabled(itemCount == 0 || isDeleting)
-        .padding()
-        .background(.bar)
+        .padding(.horizontal, Theme.page)
+        .padding(.top, 12)
+        .padding(.bottom, 8)
+        .background(alignment: .top) {
+            Theme.mist
+                .overlay(alignment: .top) { Theme.hairline.frame(height: 1) }
+                .ignoresSafeArea()
+        }
     }
 
     // MARK: - Actions
@@ -208,15 +212,17 @@ struct ReviewView: View {
     }
 
     private func toggleKeep(_ id: String) {
+        Haptics.select()
         if kept.contains(id) { kept.remove(id) } else { kept.insert(id) }
     }
 
     private func delete() {
+        Haptics.confirm()
         isDeleting = true
         Task {
             do {
                 let result = try await model.performCleanup(media: media, contacts: contacts)
-                withAnimation { self.result = result }
+                self.result = result
             } catch CleanupError.cancelled {
                 // The user declined the iOS prompt; stay here so they can change their mind.
             } catch {
@@ -234,12 +240,12 @@ private struct SectionTitle: View {
     var body: some View {
         HStack {
             Label(category.title, systemImage: category.systemImage)
-                .font(.headline)
-                .foregroundStyle(category.tint)
+                .font(.heading(.headline))
+                .foregroundStyle(Theme.pine)
             Spacer()
             Text(detail)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
     }
 }

@@ -12,7 +12,7 @@ struct AssetThumbnail: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                Color(.tertiarySystemFill)
+                Theme.hairline
                 if let image {
                     Image(uiImage: image)
                         .resizable()

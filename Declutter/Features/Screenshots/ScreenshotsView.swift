@@ -118,7 +118,7 @@ struct ScreenshotsView: View {
     private var sections: [(title: String, items: [MediaItem])] {
         var result: [(title: String, items: [MediaItem])] = []
         for item in items {
-            let title = item.asset.creationDate?.formatted(.dateTime.month(.wide).year()) ?? "Unknown Date"
+            let title = item.asset.creationDate?.formatted(.dateTime.month(.wide).year()) ?? "Unknown date"
             if result.last?.title == title {
                 result[result.count - 1].items.append(item)
             } else {

@@ -15,7 +15,7 @@ nonisolated struct ContactSummary: Identifiable, Hashable, Sendable {
     var displayName: String {
         if !name.isEmpty { return name }
         if !organization.isEmpty { return organization }
-        return phones.first ?? emails.first ?? "No Name"
+        return phones.first ?? emails.first ?? "No name"
     }
 
     var initials: String {

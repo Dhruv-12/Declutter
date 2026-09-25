@@ -17,6 +17,8 @@ nonisolated enum Theme {
     static let onPine = Color(light: 0xF3F6F5, dark: 0x0D1614)
     /// Mint: space freed and success only. Use for fills and large numbers.
     static let mint = Color(light: 0x3CCB94, dark: 0x4ED6A2)
+    /// Icons and text on a Mint fill.
+    static let onMint = Color(light: 0x12332E, dark: 0x12332E)
     /// Mint dark enough to read as small text on Mist.
     static let mintText = Color(light: 0x177552, dark: 0x5FE0AE)
     /// Stone: cards and surfaces.
