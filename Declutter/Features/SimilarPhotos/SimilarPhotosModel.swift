@@ -1,4 +1,5 @@
 import Foundation
+import Photos
 import Observation
 
 /// Holds the similar-photo scan so it keeps running (and keeps its results) when you leave the screen.
@@ -27,6 +28,8 @@ final class SimilarPhotosModel {
     }
 
     @ObservationIgnored private var scanTask: Task<Void, Never>?
+    /// Bumped on every scan so progress updates from a cancelled scan are ignored.
+    @ObservationIgnored private var scanID = 0
 
     init() {
         let saved = UserDefaults.standard.string(forKey: "similarStrictness")
@@ -47,14 +50,16 @@ final class SimilarPhotosModel {
     func scan() {
         scanTask?.cancel()
         state = .scanning(progress: 0)
+        scanID += 1
+        let id = scanID
         let strictness = strictness
         scanTask = Task { [weak self] in
             let start = Date.now
             let result = await SimilarPhotoScanner.scan(strictness: strictness) { [weak self] progress in
-                guard let self, self.isScanning else { return }
+                guard let self, self.scanID == id, self.isScanning else { return }
                 self.state = .scanning(progress: progress)
             }
-            guard let self, !Task.isCancelled else { return }
+            guard let self, self.scanID == id, !Task.isCancelled else { return }
             groups = result.groups
             scannedCount = result.scannedCount
             scanDuration = Date.now.timeIntervalSince(start)
@@ -71,8 +76,21 @@ final class SimilarPhotosModel {
         selection = Set(extras.map(\.id))
     }
 
+    /// Drops photos deleted outside the app (for example in the Photos app) from the results.
+    func removeMissingPhotos() {
+        let ids = groups.flatMap { $0.items.map(\.id) }
+        guard !ids.isEmpty else { return }
+        var existing = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
+            existing.insert(asset.localIdentifier)
+        }
+        let missing = Set(ids).subtracting(existing)
+        if !missing.isEmpty { remove(missing) }
+    }
+
     func cancelAndReset() {
         scanTask?.cancel()
+        scanID += 1
         groups = []
         selection = []
         hasUnseenResults = false

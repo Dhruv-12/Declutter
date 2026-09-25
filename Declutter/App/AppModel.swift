@@ -38,9 +38,10 @@ final class AppModel {
 
     func refreshPermissions() {
         let newPhotoStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        let photoAccessChanged = newPhotoStatus != photoStatus
-        photoStatus = newPhotoStatus
-        if photoAccessChanged { scheduleReload() }
+        if newPhotoStatus != photoStatus {
+            photoStatus = newPhotoStatus
+            Task { await photoAccessChanged() }
+        }
 
         let newContactsStatus = CNContactStore.authorizationStatus(for: .contacts)
         if newContactsStatus != contactsStatus {
@@ -53,6 +54,13 @@ final class AppModel {
 
     func requestPhotoAccess() async {
         photoStatus = await PHPhotoLibrary.requestAuthorization(for: .readWrite)
+        await photoAccessChanged()
+    }
+
+    /// Access went from none to limited to full, or the user shared more photos:
+    /// old similar-photo results no longer describe what we can see, so scan again.
+    func photoAccessChanged() async {
+        similar.cancelAndReset()
         await reloadLibrary()
     }
 
@@ -93,6 +101,7 @@ final class AppModel {
         videoSelection.formIntersection(videos.map(\.id))
         isLoadingLibrary = false
         refreshStorage()
+        similar.removeMissingPhotos()
 
         // Start the similar-photo scan in the background so the dashboard can show what it finds.
         if similar.state == .idle { similar.scan() }

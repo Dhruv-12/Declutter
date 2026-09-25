@@ -29,12 +29,14 @@ enum SystemSettings {
     }
 
     /// Lets a user with limited Photos access pick more photos to share with the app.
-    static func presentLimitedPhotoPicker() {
+    static func presentLimitedPhotoPicker(onDone: @escaping @MainActor @Sendable () -> Void) {
         guard let root = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
             .first else { return }
         var top = root
         while let presented = top.presentedViewController { top = presented }
-        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top)
+        PHPhotoLibrary.shared().presentLimitedLibraryPicker(from: top) { _ in
+            Task { @MainActor in onDone() }
+        }
     }
 }

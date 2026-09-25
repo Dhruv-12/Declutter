@@ -44,7 +44,9 @@ struct PermissionBanners: View {
                 title: "Limited photo access",
                 message: "Declutter can only see the photos you chose, so results only cover those."
             ) {
-                Button("Choose More") { SystemSettings.presentLimitedPhotoPicker() }
+                Button("Choose More") {
+                    SystemSettings.presentLimitedPhotoPicker { Task { await model.photoAccessChanged() } }
+                }
                     .buttonStyle(.bordered)
                 Button("Allow All") { SystemSettings.open() }
                     .buttonStyle(.borderedProminent)
