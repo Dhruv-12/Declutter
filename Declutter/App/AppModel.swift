@@ -15,6 +15,7 @@ final class AppModel {
     private(set) var isLoadingLibrary = false
 
     let similar = SimilarPhotosModel()
+    let contacts = ContactsModel()
 
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
@@ -23,6 +24,7 @@ final class AppModel {
 
     func start() async {
         refreshPermissions()
+        if contactsStatus.canRead { Task { await contacts.scan() } }
         await reloadLibrary()
     }
 
@@ -34,8 +36,13 @@ final class AppModel {
         let newPhotoStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
         let photoAccessChanged = newPhotoStatus != photoStatus
         photoStatus = newPhotoStatus
-        contactsStatus = CNContactStore.authorizationStatus(for: .contacts)
         if photoAccessChanged { scheduleReload() }
+
+        let newContactsStatus = CNContactStore.authorizationStatus(for: .contacts)
+        if newContactsStatus != contactsStatus {
+            contactsStatus = newContactsStatus
+            contactsAccessChanged()
+        }
     }
 
     // MARK: - Permissions
@@ -48,6 +55,15 @@ final class AppModel {
     func requestContactsAccess() async {
         _ = try? await CNContactStore().requestAccess(for: .contacts)
         contactsStatus = CNContactStore.authorizationStatus(for: .contacts)
+        contactsAccessChanged()
+    }
+
+    private func contactsAccessChanged() {
+        if contactsStatus.canRead {
+            Task { await contacts.scan() }
+        } else {
+            contacts.reset()
+        }
     }
 
     // MARK: - Photo library
@@ -99,7 +115,12 @@ final class AppModel {
             case .done: return .ready(count: similar.extras.count, bytes: similar.extras.totalSize)
             }
         case .duplicateContacts:
-            return contactsStatus.canRead ? .notScanned : .needsAccess
+            guard contactsStatus.canRead else { return .needsAccess }
+            switch contacts.state {
+            case .idle, .failed: return .notScanned
+            case .scanning where contacts.groups.isEmpty: return .loading
+            default: return .ready(count: contacts.duplicateCount, bytes: nil)
+            }
         }
     }
 

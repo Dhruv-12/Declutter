@@ -52,8 +52,8 @@ struct DashboardView: View {
             LargeVideosView()
         case .similarPhotos:
             SimilarPhotosView()
-        default:
-            ContentUnavailableView(category.title, systemImage: category.systemImage, description: Text("Coming soon."))
+        case .duplicateContacts:
+            DuplicateContactsView()
         }
     }
 }
