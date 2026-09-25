@@ -24,7 +24,7 @@ final class AppModel {
     var videoSelection: Set<String> = []
 
     /// The home screen's navigation stack, so a finished cleanup can return home.
-    var path: [CleanupCategory] = []
+    var path = NavigationPath()
     /// Space freed by cleanups since the app opened. Photos wait in Recently Deleted for 30 days,
     /// and iOS keeps counting them as used until then, so the home bar shows this separately.
     private(set) var freedThisSession: Int64 = 0
@@ -32,6 +32,7 @@ final class AppModel {
     var freedEvent: FreedEvent?
 
     let similar = SimilarPhotosModel()
+    let swipe = SwipeSortModel()
     let contacts = ContactsModel()
 
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
@@ -135,6 +136,7 @@ final class AppModel {
             screenshotSelection = []
             videoSelection = []
             similar.cancelAndReset()
+            swipe.reset()
             return
         }
         if libraryObserver == nil {
@@ -158,7 +160,7 @@ final class AppModel {
 
     /// After the summary: go back to the home screen and play the storage bar animation there.
     func returnHome(after result: CleanupResult) {
-        path = []
+        path = NavigationPath()
         guard result.bytesFreed > 0 else { return }
         freedThisSession += result.bytesFreed
         freedEvent = FreedEvent(bytes: result.bytesFreed, reclaimableBefore: reclaimableBytes + result.bytesFreed)

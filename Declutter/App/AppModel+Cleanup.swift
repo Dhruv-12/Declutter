@@ -3,10 +3,32 @@ import SwiftUI
 
 /// Everything the user has chosen to remove, frozen at the moment they open the review screen.
 struct CleanupPlan: Identifiable {
+    /// One group of photos or videos on the review screen, from a category or a tool.
     struct MediaSection: Identifiable {
-        let category: CleanupCategory
+        let id: String
+        let title: String
+        let systemImage: String
+        let tint: Color
         let items: [MediaItem]
-        var id: String { category.id }
+        /// Similar photos get an extra warning when every photo in a set is selected.
+        var isSimilarPhotos = false
+
+        init(category: CleanupCategory, items: [MediaItem]) {
+            id = category.id
+            title = category.title
+            systemImage = category.systemImage
+            tint = category.tint
+            self.items = items
+            isSimilarPhotos = category == .similarPhotos
+        }
+
+        init(tool: Tool, items: [MediaItem]) {
+            id = tool.id
+            title = tool.title
+            systemImage = tool.systemImage
+            tint = tool.tint
+            self.items = items
+        }
     }
 
     let id = UUID()
@@ -37,12 +59,38 @@ enum CleanupError: LocalizedError {
 }
 
 extension AppModel {
-    var selectedCount: Int {
-        screenshotSelection.count + videoSelection.count + similar.selection.count + contacts.selection.count
+    /// Everything selected anywhere in the app, as the home screen's Review All bar counts it.
+    /// A photo picked in two places (say, Similar photos and Swipe to sort) counts once.
+    var selectedCount: Int { homeSelectedMedia.count + contacts.selection.count }
+
+    var selectedBytes: Int64 { homeSelectedMedia.totalSize }
+
+    private var homeSelectedMedia: [MediaItem] {
+        var seen = Set<String>()
+        let all = CleanupCategory.allCases.flatMap(selectedMedia(in:)) + swipe.marked
+        return all.filter { seen.insert($0.id).inserted }
     }
 
-    var selectedBytes: Int64 {
-        CleanupCategory.allCases.reduce(0) { $0 + selectedMedia(in: $1).totalSize }
+    /// The home screen's Review All: every category plus photos marked in Swipe to sort,
+    /// each photo listed once.
+    func makeHomePlan() -> CleanupPlan {
+        let plan = makePlan()
+        let listed = Set(plan.mediaSections.flatMap { $0.items.map(\.id) })
+        let swiped = swipe.marked.filter { !listed.contains($0.id) }
+        return CleanupPlan(
+            mediaSections: plan.mediaSections + (swiped.isEmpty ? [] : [.init(tool: .swipe, items: swiped)]),
+            contacts: plan.contacts,
+            fullySelectedGroups: plan.fullySelectedGroups
+        )
+    }
+
+    /// Photos marked in Swipe to sort.
+    func makeSwipePlan() -> CleanupPlan {
+        CleanupPlan(
+            mediaSections: swipe.marked.isEmpty ? [] : [.init(tool: .swipe, items: swipe.marked)],
+            contacts: [],
+            fullySelectedGroups: 0
+        )
     }
 
     func selectedMedia(in category: CleanupCategory) -> [MediaItem] {
@@ -136,5 +184,6 @@ extension AppModel {
     private func removeDeletedMedia(_ ids: Set<String>) {
         removeMedia(ids)
         similar.remove(ids)
+        swipe.remove(ids)
     }
 }

@@ -21,6 +21,7 @@ struct DashboardView: View {
                     hero
                     PermissionBanners()
                     categories
+                    tools
                     Label("Everything is checked on this iPhone. Nothing is uploaded.", systemImage: "lock.fill")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
@@ -36,13 +37,16 @@ struct DashboardView: View {
             .navigationDestination(for: CleanupCategory.self) { category in
                 destination(for: category)
             }
+            .navigationDestination(for: Tool.self) { tool in
+                destination(for: tool)
+            }
             .refreshable {
                 model.refreshPermissions()
                 await model.reloadLibrary()
             }
             .safeAreaInset(edge: .bottom) {
                 SelectionBar(count: model.selectedCount, bytes: model.selectedBytes) {
-                    reviewPlan = model.makePlan()
+                    reviewPlan = model.makeHomePlan()
                 }
             }
             .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
@@ -130,6 +134,30 @@ struct DashboardView: View {
                 }
             }
             .surface()
+        }
+    }
+
+    private var tools: some View {
+        VStack(alignment: .leading, spacing: Theme.gap + 4) {
+            Text("Tools")
+                .font(.heading(.title3))
+                .foregroundStyle(Theme.pine)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(Tool.allCases) { tool in
+                    NavigationLink(value: tool) {
+                        ToolTile(tool: tool)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("tool.\(tool.rawValue)")
+                }
+            }
+        }
+    }
+
+    @ViewBuilder private func destination(for tool: Tool) -> some View {
+        switch tool {
+        case .swipe:
+            SwipeSortView()
         }
     }
 
@@ -361,5 +389,32 @@ struct CategoryRow: View {
         default:
             EmptyView()
         }
+    }
+}
+
+/// A tool on the home screen: colour icon, name and a short line about what it does.
+struct ToolTile: View {
+    let tool: Tool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Image(systemName: tool.systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .tintedCircle(tool.tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(tool.title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.pine)
+                Text(tool.subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+                    .lineLimit(2, reservesSpace: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Theme.spacing)
+        .surface()
+        .contentShape(.rect)
+        .accessibilityElement(children: .combine)
     }
 }

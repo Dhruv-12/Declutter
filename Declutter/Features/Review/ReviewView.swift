@@ -113,10 +113,12 @@ struct ReviewView: View {
         let remaining = section.items.filter { !kept.contains($0.id) }
         return VStack(alignment: .leading, spacing: 10) {
             SectionTitle(
-                category: section.category,
+                title: section.title,
+                systemImage: section.systemImage,
+                tint: section.tint,
                 detail: "\(remaining.count) of \(section.items.count) · \(ByteFormat.string(remaining.totalSize))"
             )
-            if section.category == .similarPhotos && plan.fullySelectedGroups > 0 {
+            if section.isSimilarPhotos && plan.fullySelectedGroups > 0 {
                 Label(
                     "In \(plan.fullySelectedGroups) group\(plan.fullySelectedGroups == 1 ? "" : "s"), every photo is selected, so none of those shots would be kept.",
                     systemImage: "exclamationmark.triangle.fill"
@@ -143,7 +145,9 @@ struct ReviewView: View {
     private var contactSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(
-                category: .duplicateContacts,
+                title: CleanupCategory.duplicateContacts.title,
+                systemImage: CleanupCategory.duplicateContacts.systemImage,
+                tint: CleanupCategory.duplicateContacts.tint,
                 detail: "\(contacts.count) of \(plan.contacts.count)"
             )
             VStack(spacing: 12) {
@@ -236,16 +240,18 @@ struct ReviewView: View {
 }
 
 private struct SectionTitle: View {
-    let category: CleanupCategory
+    let title: String
+    let systemImage: String
+    let tint: Color
     let detail: String
 
     var body: some View {
         HStack {
             HStack(spacing: 10) {
-                Image(systemName: category.systemImage)
+                Image(systemName: systemImage)
                     .font(.system(size: 14, weight: .semibold))
-                    .tintedCircle(category.tint, size: 30)
-                Text(category.title)
+                    .tintedCircle(tint, size: 30)
+                Text(title)
                     .font(.heading(.headline))
                     .foregroundStyle(Theme.pine)
             }
