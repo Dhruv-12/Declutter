@@ -39,6 +39,46 @@ final class ToolUITests: XCTestCase {
         waitForLabel(app.anyElement("tool.blurry"), contains: "1 photo", timeout: 20)
     }
 
+    /// The standard library has three large videos.
+    func testCompressVideos() {
+        app.openTool("compress")
+        let rows = app.all("compressRow")
+        expectExists(rows.firstMatch, timeout: 20)
+        XCTAssertEqual(rows.count, 3)
+
+        // Compress the largest video to the smallest quality.
+        rows.element(boundBy: 0).tap()
+        let small = app.buttons["quality.small"]
+        expectExists(small, timeout: 60, "Quality options didn't load")
+        small.tap()
+        app.buttons["compress.start"].tap()
+        expectExists(app.staticTexts["compress.done"], timeout: 180, "Compression didn't finish")
+        waitForLabel(app.staticTexts["compress.done"], startsWith: "Saved a")
+
+        // Review the original, cancel: nothing deleted.
+        app.buttons["compress.reviewOriginal"].tap()
+        waitForLabel(app.buttons["review.delete"], startsWith: "Delete 1 item")
+        app.buttons["review.cancel"].tap()
+        XCTAssertTrue(app.buttons["review.delete"].waitForNonExistence(timeout: 5))
+
+        // Keep both: the list now shows the copy too.
+        app.buttons["compress.keepBoth"].tap()
+        expectExists(app.staticTexts["Compressed copy"], timeout: 20)
+        XCTAssertEqual(rows.count, 4)
+
+        // Compress another and delete its original this time.
+        rows.element(boundBy: 1).tap()
+        expectExists(app.buttons["quality.small"], timeout: 60)
+        app.buttons["quality.small"].tap()
+        app.buttons["compress.start"].tap()
+        expectExists(app.staticTexts["compress.done"], timeout: 180)
+        app.buttons["compress.reviewOriginal"].tap()
+        app.buttons["review.delete"].tap()
+        app.confirmSystemDelete()
+        finishOnSummary(app, removed: "Videos removed")
+        waitForLabel(app.anyElement("tool.compress"), contains: "Saved", timeout: 20)
+    }
+
     func testSwipeToSort() {
         app.openTool("swipe")
 

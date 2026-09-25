@@ -4,6 +4,7 @@ import SwiftUI
 enum Tool: String, CaseIterable, Identifiable, Hashable {
     case swipe
     case blurry
+    case compress
 
     var id: String { rawValue }
 
@@ -11,6 +12,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .swipe: "Swipe to sort"
         case .blurry: "Blurry photos"
+        case .compress: "Compress videos"
         }
     }
 
@@ -18,6 +20,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .swipe: "Keep or delete, one photo at a time"
         case .blurry: "Out-of-focus shots, blurriest first"
+        case .compress: "Smaller copies of big videos"
         }
     }
 
@@ -25,6 +28,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .swipe: "rectangle.stack"
         case .blurry: "camera.metering.unknown"
+        case .compress: "arrow.down.right.and.arrow.up.left"
         }
     }
 
@@ -32,6 +36,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         switch self {
         case .swipe: Theme.iris
         case .blurry: Theme.slate
+        case .compress: Theme.plum
         }
     }
 }

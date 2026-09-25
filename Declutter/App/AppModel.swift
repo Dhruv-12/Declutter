@@ -34,6 +34,7 @@ final class AppModel {
     let similar = SimilarPhotosModel()
     let swipe = SwipeSortModel()
     let blurry = BlurryPhotosModel()
+    let compress = CompressVideosModel()
     let contacts = ContactsModel()
 
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
@@ -139,6 +140,7 @@ final class AppModel {
             similar.cancelAndReset()
             swipe.reset()
             blurry.reset()
+            compress.reset()
             return
         }
         if libraryObserver == nil {

@@ -168,6 +168,10 @@ struct DashboardView: View {
                 let photos = model.blurry.items
                 return photos.isEmpty ? "None found" : "\(counted(photos.count, "photo")) · \(ByteFormat.string(photos.totalSize))"
             }
+        case .compress:
+            let compress = model.compress
+            if compress.totalSaved > 0 { return "Saved \(ByteFormat.string(compress.totalSaved))" }
+            return compress.records.isEmpty ? nil : "\(counted(compress.records.count, "video")) compressed"
         }
     }
 
@@ -177,6 +181,8 @@ struct DashboardView: View {
             SwipeSortView()
         case .blurry:
             BlurryPhotosView()
+        case .compress:
+            CompressVideosView()
         }
     }
 

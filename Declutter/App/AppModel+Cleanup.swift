@@ -94,6 +94,9 @@ extension AppModel {
     /// Blurry photos the user selected.
     func makeBlurryPlan() -> CleanupPlan { toolPlan(.blurry, blurry.selectedItems) }
 
+    /// The original of a video that now has a smaller copy.
+    func makeCompressPlan(original: MediaItem) -> CleanupPlan { toolPlan(.compress, [original]) }
+
     private func toolPlan(_ tool: Tool, _ items: [MediaItem]) -> CleanupPlan {
         CleanupPlan(mediaSections: items.isEmpty ? [] : [.init(tool: tool, items: items)], contacts: [], fullySelectedGroups: 0)
     }
@@ -191,5 +194,6 @@ extension AppModel {
         similar.remove(ids)
         swipe.remove(ids)
         blurry.remove(ids)
+        compress.remove(ids)
     }
 }
