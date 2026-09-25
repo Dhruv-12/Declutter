@@ -5,7 +5,6 @@ import SwiftUI
 /// it frees. Tap any item to keep it.
 struct ReviewView: View {
     let plan: CleanupPlan
-    var onFinished: (CleanupResult) -> Void = { _ in }
 
     @Environment(AppModel.self) private var model
     @Environment(\.dismiss) private var dismiss
@@ -14,6 +13,7 @@ struct ReviewView: View {
     @State private var isDeleting = false
     @State private var confirmingContacts = false
     @State private var errorMessage: String?
+    @State private var result: CleanupResult?
 
     private let columns = [GridItem(.adaptive(minimum: 76), spacing: 4)]
 
@@ -28,6 +28,15 @@ struct ReviewView: View {
     private var itemCount: Int { media.count + contacts.count }
 
     var body: some View {
+        if let result {
+            SpaceFreedView(result: result) { dismiss() }
+                .transition(.opacity)
+        } else {
+            review
+        }
+    }
+
+    private var review: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
@@ -204,8 +213,7 @@ struct ReviewView: View {
         Task {
             do {
                 let result = try await model.performCleanup(media: media, contacts: contacts)
-                onFinished(result)
-                dismiss()
+                withAnimation { self.result = result }
             } catch CleanupError.cancelled {
                 // The user declined the iOS prompt; stay here so they can change their mind.
             } catch {

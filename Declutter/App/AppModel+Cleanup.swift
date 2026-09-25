@@ -105,6 +105,7 @@ extension AppModel {
         }
 
         refreshStorage()
+        LifetimeStats.record(result)
         return result
     }
 
