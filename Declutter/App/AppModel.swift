@@ -14,6 +14,8 @@ final class AppModel {
     private(set) var videos: [MediaItem] = []
     private(set) var isLoadingLibrary = false
 
+    let similar = SimilarPhotosModel()
+
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
 
@@ -54,6 +56,7 @@ final class AppModel {
         guard photoStatus.canRead else {
             screenshots = []
             videos = []
+            similar.cancelAndReset()
             return
         }
         if libraryObserver == nil {
@@ -65,6 +68,9 @@ final class AppModel {
         videos = media.videos
         isLoadingLibrary = false
         refreshStorage()
+
+        // Start the similar-photo scan in the background so the dashboard can show what it finds.
+        if similar.state == .idle { similar.scan() }
     }
 
     /// Photo library change notifications arrive in bursts, so wait a moment before reloading.
@@ -86,7 +92,12 @@ final class AppModel {
         case .largeVideos:
             return mediaSummary(videos)
         case .similarPhotos:
-            return photoStatus.canRead ? .notScanned : .needsAccess
+            guard photoStatus.canRead else { return .needsAccess }
+            switch similar.state {
+            case .idle: return .notScanned
+            case .scanning(let progress): return .scanning(progress: progress)
+            case .done: return .ready(count: similar.extras.count, bytes: similar.extras.totalSize)
+            }
         case .duplicateContacts:
             return contactsStatus.canRead ? .notScanned : .needsAccess
         }
@@ -110,6 +121,7 @@ final class AppModel {
 enum CategorySummary: Equatable {
     case needsAccess
     case loading
+    case scanning(progress: Double)
     case notScanned
     case ready(count: Int, bytes: Int64?)
 }

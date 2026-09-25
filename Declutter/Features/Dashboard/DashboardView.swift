@@ -50,6 +50,8 @@ struct DashboardView: View {
             ScreenshotsView()
         case .largeVideos:
             LargeVideosView()
+        case .similarPhotos:
+            SimilarPhotosView()
         default:
             ContentUnavailableView(category.title, systemImage: category.systemImage, description: Text("Coming soon."))
         }
@@ -161,6 +163,7 @@ struct CategoryCard: View {
         switch summary {
         case .needsAccess: category.needsPhotos ? "Needs Photos access" : "Needs Contacts access"
         case .loading: "Counting…"
+        case .scanning(let progress): "Scanning… \(Int(progress * 100))%"
         case .notScanned: "Tap to scan"
         case .ready(let count, _):
             switch category {
@@ -176,6 +179,9 @@ struct CategoryCard: View {
         switch summary {
         case .loading:
             ProgressView()
+        case .scanning(let progress):
+            ProgressView(value: progress)
+                .progressViewStyle(.circular)
         case .ready(_, let bytes?):
             Text(ByteFormat.string(bytes))
                 .font(.subheadline.weight(.semibold))
