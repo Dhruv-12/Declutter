@@ -5,6 +5,7 @@ struct DeclutterApp: App {
     @State private var model = AppModel()
 
     init() {
+        LaunchTimer.mark("App init started")
         BrandAppearance.apply()
     }
 

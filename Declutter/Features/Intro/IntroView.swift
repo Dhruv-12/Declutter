@@ -13,6 +13,7 @@ struct IntroView: View {
     @State private var barShown = false
     @State private var fadingOut = false
     @State private var finished = false
+    @State private var firstFrame = FirstFrameSignal()
 
     private let letters = Array("Declutter")
 
@@ -60,6 +61,10 @@ struct IntroView: View {
         .accessibilityElement()
         .accessibilityLabel("Declutter")
         .accessibilityAddTraits(.isHeader)
+        .onAppear {
+            LaunchTimer.mark("Intro view appeared")
+            firstFrame.wait { LaunchTimer.mark("First intro frame on screen") }
+        }
         .task { await play() }
     }
 
@@ -70,6 +75,7 @@ struct IntroView: View {
             try? await Task.sleep(for: .milliseconds(900))
         } else {
             try? await Task.sleep(for: .milliseconds(50))
+            LaunchTimer.mark("Intro animation started")
             settled = true
             try? await Task.sleep(for: .milliseconds(750))
             Haptics.light()
@@ -85,6 +91,7 @@ struct IntroView: View {
         withAnimation(.easeInOut(duration: 0.35)) { fadingOut = true }
         Task {
             try? await Task.sleep(for: .milliseconds(350))
+            LaunchTimer.mark("Intro finished")
             onFinished()
         }
     }
