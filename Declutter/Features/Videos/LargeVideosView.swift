@@ -33,14 +33,12 @@ struct LargeVideosView: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes) {
+                if !model.videos.isEmpty && model.photoStatus.canRead {
+                    SelectionBar(count: selection.count, bytes: selectedBytes, singular: "video", plural: "videos") {
                         reviewPlan = model.makePlan(for: [.largeVideos])
                     }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.snappy, value: selection.isEmpty)
             .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
             .sheet(item: $previewing) { item in
                 VideoPreviewView(
@@ -55,15 +53,24 @@ struct LargeVideosView: View {
         if !model.photoStatus.canRead {
             PhotoAccessNeededView()
         } else if model.isLoadingLibrary && model.videos.isEmpty {
-            ProgressView("Finding videos…")
+            LoadingView(text: "Finding videos…")
         } else if items.isEmpty {
-            ContentUnavailableView(
-                "No Videos",
-                systemImage: "play.rectangle",
-                description: Text(minimumSize == .all
-                                  ? "There are no videos on this iPhone."
-                                  : "No videos are \(minimumSize.title.lowercased()).")
-            )
+            if minimumSize == .all {
+                EmptyStateView(
+                    systemImage: "play.rectangle",
+                    title: "No videos",
+                    message: "There are no videos on this iPhone. Videos you record will show up here, biggest first."
+                )
+            } else {
+                EmptyStateView(
+                    systemImage: "line.3.horizontal.decrease.circle",
+                    title: "No videos \(minimumSize.title.lowercased())",
+                    message: "Try a smaller size to see more videos.",
+                    actionTitle: "Show all videos"
+                ) {
+                    minimumSize = .all
+                }
+            }
         } else {
             list
         }
@@ -71,11 +78,11 @@ struct LargeVideosView: View {
 
     private var list: some View {
         ScrollView {
-            Text("\(items.count) videos · \(ByteFormat.string(items.totalSize))")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal)
+            ScreenSummary(
+                text: "\(items.count) videos · \(ByteFormat.string(items.totalSize))",
+                detail: "Biggest first. Tap a thumbnail to play it."
+            )
+            .padding(.top, Theme.gap)
 
             BulkActionBar {
                 let allSelected = items.allSatisfy { selection.contains($0.id) }
@@ -93,9 +100,9 @@ struct LargeVideosView: View {
                     }
                 }
             }
-            .padding(.bottom, 4)
+            .padding(.bottom, Theme.gap)
 
-            LazyVStack(spacing: 10) {
+            LazyVStack(spacing: Theme.gap + 2) {
                 let largest = max(items.first?.size ?? 1, 1)
                 ForEach(items) { item in
                     VideoRow(
@@ -107,13 +114,14 @@ struct LargeVideosView: View {
                     .onTapGesture { toggle(item.id) }
                 }
             }
-            .padding(.horizontal)
-            .padding(.bottom)
+            .padding(.horizontal, Theme.page)
+            .padding(.bottom, Theme.spacing)
         }
-        .background(Color(.systemGroupedBackground))
+        .screenBackground()
     }
 
     private func toggle(_ id: String) {
+        Haptics.select()
         if selection.contains(id) {
             model.videoSelection.remove(id)
         } else {
@@ -136,7 +144,7 @@ enum SizeFilter: Int64, CaseIterable, Identifiable {
     var bytes: Int64 { rawValue }
 
     var title: String {
-        self == .all ? "All Videos" : "Over \(ByteFormat.string(rawValue))"
+        self == .all ? "All videos" : "Over \(ByteFormat.string(rawValue))"
     }
 }
 
@@ -150,13 +158,14 @@ private struct VideoRow: View {
         HStack(spacing: 14) {
             Button(action: onPreview) {
                 AssetThumbnail(asset: item.asset)
-                    .frame(width: 100, height: 70)
-                    .clipShape(.rect(cornerRadius: 10))
+                    .frame(width: 100, height: 72)
+                    .clipShape(.rect(cornerRadius: Theme.smallRadius))
                     .overlay {
-                        Image(systemName: "play.circle.fill")
-                            .font(.title)
-                            .symbolRenderingMode(.palette)
-                            .foregroundStyle(.white, .black.opacity(0.4))
+                        Image(systemName: "play.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(Theme.onPine)
+                            .frame(width: 32, height: 32)
+                            .background(Theme.pine.opacity(0.85), in: .circle)
                     }
                     .overlay(alignment: .bottomTrailing) {
                         Text(item.asset.duration.durationText)
@@ -171,26 +180,36 @@ private struct VideoRow: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Preview video")
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 6) {
                 Text(ByteFormat.string(item.size))
-                    .font(.headline)
+                    .font(.system(.headline, design: .rounded, weight: .bold))
+                    .foregroundStyle(Theme.pine)
                 Text(details)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
-                ProgressView(value: fractionOfLargest)
-                    .tint(CleanupCategory.largeVideos.tint)
+                    .foregroundStyle(Theme.secondaryText)
+                // How this video compares with the biggest one.
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.mist)
+                        Capsule().fill(Theme.pine.opacity(0.4))
+                            .frame(width: max(geometry.size.width * fractionOfLargest, 4))
+                    }
+                }
+                .frame(height: 6)
+                .accessibilityHidden(true)
             }
 
             SelectionCheckmark(isSelected: isSelected)
         }
         .padding(12)
-        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 16))
+        .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
         .overlay {
             if isSelected {
-                RoundedRectangle(cornerRadius: 16).strokeBorder(Color.accentColor, lineWidth: 2)
+                RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.pine, lineWidth: 2)
             }
         }
         .contentShape(.rect)
+        .accessibilityElement(children: .contain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -221,8 +240,18 @@ struct VideoPreviewView: View {
                 if let player {
                     VideoPlayer(player: player)
                 } else if failed {
-                    ContentUnavailableView("Can't Play Video", systemImage: "exclamationmark.triangle")
-                        .foregroundStyle(.white)
+                    VStack(spacing: Theme.gap) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.largeTitle)
+                        Text("This video can't be played")
+                            .font(.heading(.headline))
+                        Text("It may still be downloading from iCloud. Try again in a moment.")
+                            .font(.subheadline)
+                            .multilineTextAlignment(.center)
+                            .opacity(0.8)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(Theme.page)
                 } else {
                     ProgressView().tint(.white)
                 }
@@ -232,10 +261,10 @@ struct VideoPreviewView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") { dismiss() }
+                    Button("Close") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSelected ? "Deselect" : "Select") {
+                    Button(isSelected ? "Deselect video" : "Select video") {
                         onToggle()
                         dismiss()
                     }
