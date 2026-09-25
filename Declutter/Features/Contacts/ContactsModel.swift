@@ -17,6 +17,8 @@ final class ContactsModel {
     var selection: Set<String> = []
 
     @ObservationIgnored private var changeObserver: Task<Void, Never>?
+    /// Only the newest scan may update the results, so a slow older scan can't overwrite them.
+    @ObservationIgnored private var scanGeneration = 0
 
     /// Contacts that could go away: every contact in a group except the one that would be kept.
     var duplicateCount: Int { groups.reduce(0) { $0 + $1.contacts.count - 1 } }
@@ -27,14 +29,18 @@ final class ContactsModel {
 
     func scan() async {
         state = .scanning
+        scanGeneration += 1
+        let generation = scanGeneration
         do {
             let result = try await ContactsService.findDuplicates()
+            guard generation == scanGeneration else { return }
             groups = result.groups
             totalContacts = result.totalContacts
             let ids = Set(result.groups.flatMap { $0.contacts.map(\.id) })
             selection.formIntersection(ids)
             state = .done
         } catch {
+            guard generation == scanGeneration else { return }
             state = .failed(error.localizedDescription)
         }
         observeChanges()
@@ -52,9 +58,27 @@ final class ContactsModel {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
 
-    func merge(_ group: ContactGroup) async throws {
-        try await ContactsService.merge(group.contacts.map(\.id), into: group.primary.id)
+    /// Merges one group exactly as edited in the merge editor.
+    func merge(_ draft: MergeDraft) async throws {
+        try await ContactsService.merge(draft.plan)
         await scan()
+    }
+
+    /// Merges each approved group in turn. One failure doesn't stop the rest.
+    /// Returns a message for every group that couldn't be merged.
+    func mergeAll(_ drafts: [MergeDraft], progress: (Int) -> Void) async -> [String] {
+        var failures: [String] = []
+        for (index, draft) in drafts.enumerated() {
+            progress(index)
+            do {
+                try await ContactsService.merge(draft.plan)
+            } catch {
+                failures.append("\(draft.finalName): \(error.localizedDescription)")
+            }
+        }
+        progress(drafts.count)
+        await scan()
+        return failures
     }
 
     func delete(_ ids: [String]) async throws {

@@ -69,6 +69,22 @@ extension AppModel {
         )
     }
 
+    /// A review of every item in a category, for "Delete all". It doesn't touch the user's selection,
+    /// so cancelling the review leaves everything as it was.
+    func makeDeleteAllPlan(_ category: CleanupCategory) -> CleanupPlan {
+        let items: [MediaItem] = switch category {
+        case .screenshots: screenshots
+        case .largeVideos: videos
+        case .similarPhotos: similar.extras
+        case .duplicateContacts: []
+        }
+        return CleanupPlan(
+            mediaSections: items.isEmpty ? [] : [.init(category: category, items: items)],
+            contacts: [],
+            fullySelectedGroups: 0
+        )
+    }
+
     /// Deletes exactly the given items. Only ever called from the review screen after the user confirms.
     func performCleanup(media: [MediaItem], contacts contactsToDelete: [ContactSummary]) async throws -> CleanupResult {
         var result = CleanupResult()

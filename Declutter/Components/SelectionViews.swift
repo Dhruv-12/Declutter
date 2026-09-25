@@ -131,3 +131,45 @@ struct SelectAllButton: View {
         .disabled(allIDs.isEmpty)
     }
 }
+
+/// A bulk action whose label says how much it covers, e.g. "Delete all 243 (1.2 GB)".
+struct BulkActionButton: View {
+    let title: String
+    let count: Int
+    var bytes: Int64? = nil
+    /// Shown in brackets instead of a size, for things without one (like contacts).
+    var detail: String? = nil
+    let systemImage: String
+    var role: ButtonRole? = nil
+    let action: () -> Void
+
+    private var label: String {
+        let bracket = detail ?? bytes.map(ByteFormat.string)
+        return "\(title) \(count)" + (bracket.map { " (\($0))" } ?? "")
+    }
+
+    var body: some View {
+        Button(role: role, action: action) {
+            Label(label, systemImage: systemImage)
+                .font(.subheadline.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(count == 0)
+    }
+}
+
+/// Lays bulk buttons side by side, or stacked when they don't fit.
+struct BulkActionBar<Content: View>: View {
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { content() }
+            VStack(spacing: 8) { content() }
+        }
+        .padding(.horizontal)
+    }
+}

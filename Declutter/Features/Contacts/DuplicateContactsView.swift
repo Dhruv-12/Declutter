@@ -5,6 +5,7 @@ struct DuplicateContactsView: View {
     @Environment(AppModel.self) private var model
     @State private var merging: ContactGroup?
     @State private var reviewPlan: CleanupPlan?
+    @State private var mergingAll = false
 
     private var contacts: ContactsModel { model.contacts }
 
@@ -22,9 +23,12 @@ struct DuplicateContactsView: View {
             .animation(.snappy, value: contacts.selection.isEmpty)
             .refreshable { await contacts.scan() }
             .sheet(item: $merging) { group in
-                MergePreviewSheet(group: group) {
-                    try await contacts.merge(group)
+                MergeSheet(group: group) { draft in
+                    try await contacts.merge(draft)
                 }
+            }
+            .sheet(isPresented: $mergingAll) {
+                MergeAllSheet(groups: contacts.groups)
             }
             .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
     }
@@ -91,6 +95,19 @@ struct DuplicateContactsView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
+
+            BulkActionBar {
+                BulkActionButton(
+                    title: "Merge all",
+                    count: contacts.groups.count,
+                    detail: "\(contacts.duplicateCount) duplicate\(contacts.duplicateCount == 1 ? "" : "s")",
+                    systemImage: "arrow.triangle.merge"
+                ) {
+                    // Opens a list of every merged preview; nothing changes until the user confirms there.
+                    mergingAll = true
+                }
+            }
+            .padding(.top, 8)
 
             LazyVStack(spacing: 16) {
                 ForEach(contacts.groups) { group in
@@ -212,82 +229,5 @@ private struct ContactSelectionBar: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(.bar)
-    }
-}
-
-/// Shows exactly what a merge will produce before anything changes.
-struct MergePreviewSheet: View {
-    let group: ContactGroup
-    let perform: () async throws -> Void
-
-    @Environment(\.dismiss) private var dismiss
-    @State private var isWorking = false
-    @State private var errorMessage: String?
-
-    var body: some View {
-        let preview = group.mergedPreview
-        NavigationStack {
-            List {
-                Section {
-                    HStack(spacing: 14) {
-                        ContactAvatar(contact: group.primary, size: 56)
-                        Text(preview.name).font(.title3.bold())
-                    }
-                    ForEach(preview.phones, id: \.self) { Label($0, systemImage: "phone") }
-                    ForEach(preview.emails, id: \.self) { Label($0, systemImage: "envelope") }
-                } header: {
-                    Text("Merged contact")
-                } footer: {
-                    Text("Addresses, birthdays, dates, relations and social profiles are combined too.")
-                }
-
-                Section {
-                    ForEach(group.contacts) { contact in
-                        HStack {
-                            ContactRow(contact: contact)
-                            Text(contact.id == group.primary.id ? "Kept" : "Deleted")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(contact.id == group.primary.id ? .green : .red)
-                        }
-                    }
-                } header: {
-                    Text("These \(group.contacts.count) contacts become one")
-                } footer: {
-                    Text("After their details are copied, the other \(group.contacts.count - 1) contact\(group.contacts.count == 2 ? " is" : "s are") permanently deleted. Notes can't be read by apps, so any notes on them won't be copied. Check them in the Contacts app first if they matter.")
-                }
-
-                if let errorMessage {
-                    Section { Text(errorMessage).foregroundStyle(.red) }
-                }
-            }
-            .navigationTitle("Merge Contacts")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    if isWorking {
-                        ProgressView()
-                    } else {
-                        Button("Merge") {
-                            isWorking = true
-                            Task {
-                                do {
-                                    try await perform()
-                                    dismiss()
-                                } catch {
-                                    errorMessage = error.localizedDescription
-                                    isWorking = false
-                                }
-                            }
-                        }
-                        .bold()
-                    }
-                }
-            }
-            .interactiveDismissDisabled(isWorking)
-        }
-        .presentationDetents([.medium, .large])
     }
 }

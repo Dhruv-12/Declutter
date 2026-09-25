@@ -39,22 +39,6 @@ nonisolated struct ContactGroup: Identifiable, Hashable, Sendable {
     var primary: ContactSummary {
         contacts.max { $0.fieldCount < $1.fieldCount } ?? contacts[0]
     }
-
-    /// What the contact will look like after merging.
-    var mergedPreview: (name: String, phones: [String], emails: [String]) {
-        let name = primary.name.isEmpty ? (contacts.first { !$0.name.isEmpty }?.name ?? primary.displayName) : primary.name
-        var phones: [String] = [], phoneKeys: Set<String> = []
-        var emails: [String] = [], emailKeys: Set<String> = []
-        for contact in [primary] + contacts.filter({ $0.id != primary.id }) {
-            for phone in contact.phones where phoneKeys.insert(ContactsService.phoneKey(phone) ?? phone).inserted {
-                phones.append(phone)
-            }
-            for email in contact.emails where emailKeys.insert(email.lowercased()).inserted {
-                emails.append(email)
-            }
-        }
-        return (name, phones, emails)
-    }
 }
 
 nonisolated struct ContactScanResult: Sendable {
@@ -192,10 +176,12 @@ nonisolated enum ContactsService {
 
     // MARK: - Changing contacts
 
-    /// Copies every detail apps are allowed to read from the other contacts into `primaryID`,
-    /// then deletes the others. (Notes need a special Apple entitlement, so they can't be copied.)
+    /// Merges a group exactly as the user approved it in the merge editor: the chosen name, only the
+    /// ticked phone numbers and emails, and the chosen photo. Every other detail apps are allowed to
+    /// read is combined, then the other contacts are deleted.
+    /// (Notes need a special Apple entitlement, so they can't be copied.)
     @concurrent
-    static func merge(_ ids: [String], into primaryID: String) async throws {
+    static func merge(_ plan: MergePlan) async throws {
         let store = CNContactStore()
         let keys = summaryKeys + [
             CNContactImageDataKey,
@@ -213,39 +199,31 @@ nonisolated enum ContactsService {
             CNContactInstantMessageAddressesKey,
             CNContactRelationsKey,
         ].map { $0 as CNKeyDescriptor }
-        let contacts = try store.unifiedContacts(
-            matching: CNContact.predicateForContacts(withIdentifiers: ids),
+        let fetched = try store.unifiedContacts(
+            matching: CNContact.predicateForContacts(withIdentifiers: plan.contactIDs),
             keysToFetch: keys
         )
         // If any contact changed or vanished since the preview, stop rather than merge something unexpected.
-        guard contacts.count == ids.count, let primary = contacts.first(where: { $0.identifier == primaryID })?.mutableCopy() as? CNMutableContact
+        let byID = Dictionary(fetched.map { ($0.identifier, $0) }, uniquingKeysWith: { first, _ in first })
+        guard byID.count == plan.contactIDs.count,
+              let original = byID[plan.primaryID],
+              let primary = original.mutableCopy() as? CNMutableContact
         else { throw ContactsError.notFound }
 
+        // Same order as the editor: the kept contact first, then the others as listed.
+        let others = plan.contactIDs.filter { $0 != plan.primaryID }.compactMap { byID[$0] }
+        let ordered = [original] + others
+
         let request = CNSaveRequest()
-        for other in contacts where other.identifier != primaryID {
-            fillIfEmpty(&primary.namePrefix, other.namePrefix)
-            fillIfEmpty(&primary.givenName, other.givenName)
-            fillIfEmpty(&primary.middleName, other.middleName)
-            fillIfEmpty(&primary.familyName, other.familyName)
-            fillIfEmpty(&primary.nameSuffix, other.nameSuffix)
+        for other in others {
             fillIfEmpty(&primary.previousFamilyName, other.previousFamilyName)
-            fillIfEmpty(&primary.phoneticGivenName, other.phoneticGivenName)
-            fillIfEmpty(&primary.phoneticMiddleName, other.phoneticMiddleName)
-            fillIfEmpty(&primary.phoneticFamilyName, other.phoneticFamilyName)
             fillIfEmpty(&primary.nickname, other.nickname)
             fillIfEmpty(&primary.organizationName, other.organizationName)
             fillIfEmpty(&primary.departmentName, other.departmentName)
             fillIfEmpty(&primary.jobTitle, other.jobTitle)
             if primary.birthday == nil { primary.birthday = other.birthday }
             if primary.nonGregorianBirthday == nil { primary.nonGregorianBirthday = other.nonGregorianBirthday }
-            if primary.imageData == nil { primary.imageData = other.imageData }
 
-            primary.phoneNumbers = mergeValues(primary.phoneNumbers, other.phoneNumbers) {
-                phoneKey($0.stringValue) ?? $0.stringValue
-            }
-            primary.emailAddresses = mergeValues(primary.emailAddresses, other.emailAddresses) {
-                ($0 as String).lowercased()
-            }
             primary.urlAddresses = mergeValues(primary.urlAddresses, other.urlAddresses) {
                 ($0 as String).lowercased()
             }
@@ -269,8 +247,73 @@ nonisolated enum ContactsService {
                 request.delete(removable)
             }
         }
+
+        // Phone numbers and emails: one copy of each, and only the ones the user ticked.
+        primary.phoneNumbers = pickValues(ordered.flatMap(\.phoneNumbers), keep: plan.phoneKeys) {
+            phoneDedupKey($0.stringValue)
+        }
+        primary.emailAddresses = pickValues(ordered.flatMap(\.emailAddresses), keep: plan.emailKeys) {
+            emailDedupKey($0 as String)
+        }
+
+        // Name: copied whole from the chosen contact, or the user's own.
+        switch plan.name {
+        case .contact(let id):
+            if let source = byID[id] {
+                primary.namePrefix = source.namePrefix
+                primary.givenName = source.givenName
+                primary.middleName = source.middleName
+                primary.familyName = source.familyName
+                primary.nameSuffix = source.nameSuffix
+                primary.phoneticGivenName = source.phoneticGivenName
+                primary.phoneticMiddleName = source.phoneticMiddleName
+                primary.phoneticFamilyName = source.phoneticFamilyName
+            }
+        case .custom(let given, let family):
+            primary.namePrefix = ""
+            primary.givenName = given
+            primary.middleName = ""
+            primary.familyName = family
+            primary.nameSuffix = ""
+            primary.phoneticGivenName = ""
+            primary.phoneticMiddleName = ""
+            primary.phoneticFamilyName = ""
+        }
+
+        // Photo: the chosen contact's, or none.
+        if let photoID = plan.photoFrom {
+            if photoID != plan.primaryID { primary.imageData = byID[photoID]?.imageData }
+        } else {
+            primary.imageData = nil
+        }
+
         request.update(primary)
         try store.execute(request)
+    }
+
+    /// Phone numbers are the same if their digits match, ignoring spaces, symbols and a country
+    /// code: "+91 98765 43210" and "9876543210" both become "9876543210".
+    static func phoneDedupKey(_ phone: String) -> String {
+        let digits = phone.filter(\.isNumber)
+        return digits.isEmpty ? phone.lowercased() : String(digits.suffix(10))
+    }
+
+    static func emailDedupKey(_ email: String) -> String {
+        email.trimmingCharacters(in: .whitespaces).lowercased()
+    }
+
+    /// First copy of each value whose key is in `keep`, as fresh labeled values.
+    private static func pickValues<Value: NSCopying & NSSecureCoding>(
+        _ values: [CNLabeledValue<Value>],
+        keep: Set<String>,
+        key: (Value) -> String
+    ) -> [CNLabeledValue<Value>] {
+        var seen = Set<String>()
+        return values.compactMap { item in
+            let itemKey = key(item.value)
+            guard keep.contains(itemKey), seen.insert(itemKey).inserted else { return nil }
+            return CNLabeledValue(label: item.label, value: item.value)
+        }
     }
 
     /// Permanently deletes contacts. Contacts have no "Recently Deleted" folder.

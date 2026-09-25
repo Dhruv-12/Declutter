@@ -17,8 +17,7 @@ struct LargeVideosView: View {
     private var selection: Set<String> { model.videoSelection }
 
     var body: some View {
-        @Bindable var model = model
-        return content
+        content
             .navigationTitle("Large Videos")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -31,9 +30,6 @@ struct LargeVideosView: View {
                               ? "line.3.horizontal.decrease.circle"
                               : "line.3.horizontal.decrease.circle.fill")
                     }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    SelectAllButton(allIDs: items.map(\.id), selection: $model.videoSelection)
                 }
             }
             .safeAreaInset(edge: .bottom) {
@@ -80,6 +76,24 @@ struct LargeVideosView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+
+            BulkActionBar {
+                let allSelected = items.allSatisfy { selection.contains($0.id) }
+                BulkActionButton(
+                    title: allSelected ? "Deselect all" : "Select all",
+                    count: items.count,
+                    bytes: items.totalSize,
+                    systemImage: allSelected ? "circle" : "checkmark.circle"
+                ) {
+                    let ids = items.map(\.id)
+                    if allSelected {
+                        model.videoSelection.subtract(ids)
+                    } else {
+                        model.videoSelection.formUnion(ids)
+                    }
+                }
+            }
+            .padding(.bottom, 4)
 
             LazyVStack(spacing: 10) {
                 let largest = max(items.first?.size ?? 1, 1)

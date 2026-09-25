@@ -13,14 +13,8 @@ struct ScreenshotsView: View {
     private var selection: Set<String> { model.screenshotSelection }
 
     var body: some View {
-        @Bindable var model = model
-        return content
+        content
             .navigationTitle("Screenshots")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    SelectAllButton(allIDs: items.map(\.id), selection: $model.screenshotSelection)
-                }
-            }
             .safeAreaInset(edge: .bottom) {
                 if !selection.isEmpty {
                     SelectionBar(count: selection.count, bytes: selectedBytes, actionTitle: "Review") {
@@ -56,6 +50,29 @@ struct ScreenshotsView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal)
+
+            BulkActionBar {
+                let allSelected = items.allSatisfy { selection.contains($0.id) }
+                BulkActionButton(
+                    title: allSelected ? "Deselect all" : "Select all",
+                    count: items.count,
+                    bytes: items.totalSize,
+                    systemImage: allSelected ? "circle" : "checkmark.circle"
+                ) {
+                    model.screenshotSelection = allSelected ? [] : Set(items.map(\.id))
+                }
+                BulkActionButton(
+                    title: "Delete all",
+                    count: items.count,
+                    bytes: items.totalSize,
+                    systemImage: "trash",
+                    role: .destructive
+                ) {
+                    // Opens the review screen; nothing is deleted until the user confirms there.
+                    reviewPlan = model.makeDeleteAllPlan(.screenshots)
+                }
+            }
+            .padding(.bottom, 4)
 
             LazyVGrid(columns: columns, spacing: 4, pinnedViews: .sectionHeaders) {
                 ForEach(sections, id: \.title) { section in

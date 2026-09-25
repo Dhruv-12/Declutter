@@ -74,6 +74,20 @@ struct SimilarPhotosView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal)
 
+            BulkActionBar {
+                let extras = similar.extras
+                let allSelected = extras.allSatisfy { similar.selection.contains($0.id) }
+                BulkActionButton(
+                    title: allSelected ? "Deselect all duplicates" : "Select all duplicates",
+                    count: extras.count,
+                    bytes: extras.totalSize,
+                    systemImage: allSelected ? "circle" : "checkmark.circle"
+                ) {
+                    similar.selectAllExtras(!allSelected)
+                }
+            }
+            .padding(.top, 8)
+
             LazyVStack(spacing: 16) {
                 ForEach(similar.groups) { group in
                     SimilarGroupCard(group: group, similar: similar)
@@ -86,13 +100,6 @@ struct SimilarPhotosView: View {
 
     private var optionsMenu: some View {
         Menu {
-            if similar.state == .done && !similar.groups.isEmpty {
-                let allSelected = similar.extras.allSatisfy { similar.selection.contains($0.id) }
-                Button(allSelected ? "Deselect All" : "Select All Extras",
-                       systemImage: allSelected ? "circle" : "checkmark.circle") {
-                    similar.selectAllExtras(!allSelected)
-                }
-            }
             Button("Scan Again", systemImage: "arrow.clockwise") { similar.scan() }
             Picker(selection: Binding(get: { similar.strictness }, set: { similar.strictness = $0 })) {
                 ForEach(MatchStrictness.allCases) { Text($0.title).tag($0) }
