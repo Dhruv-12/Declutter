@@ -29,7 +29,10 @@ struct ReviewView: View {
 
     var body: some View {
         if let result {
-            SpaceFreedView(result: result) { dismiss() }
+            SpaceFreedView(result: result) {
+                model.returnHome(after: result)
+                dismiss()
+            }
                 .transition(.opacity)
         } else {
             review

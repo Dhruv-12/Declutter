@@ -18,6 +18,14 @@ final class AppModel {
     var screenshotSelection: Set<String> = []
     var videoSelection: Set<String> = []
 
+    /// The home screen's navigation stack, so a finished cleanup can return home.
+    var path: [CleanupCategory] = []
+    /// Space freed by cleanups since the app opened. Photos wait in Recently Deleted for 30 days,
+    /// and iOS keeps counting them as used until then, so the home bar shows this separately.
+    private(set) var freedThisSession: Int64 = 0
+    /// Set after a cleanup to play the home screen's "space freed" animation once.
+    var freedEvent: FreedEvent?
+
     let similar = SimilarPhotosModel()
     let contacts = ContactsModel()
 
@@ -107,6 +115,14 @@ final class AppModel {
         if similar.state == .idle { similar.scan() }
     }
 
+    /// After the summary: go back to the home screen and play the storage bar animation there.
+    func returnHome(after result: CleanupResult) {
+        path = []
+        guard result.bytesFreed > 0 else { return }
+        freedThisSession += result.bytesFreed
+        freedEvent = FreedEvent(bytes: result.bytesFreed, reclaimableBefore: reclaimableBytes + result.bytesFreed)
+    }
+
     func removeMedia(_ ids: Set<String>) {
         screenshots.removeAll { ids.contains($0.id) }
         videos.removeAll { ids.contains($0.id) }
@@ -162,6 +178,13 @@ final class AppModel {
         if isLoadingLibrary && items.isEmpty { return .loading }
         return .ready(count: items.count, bytes: items.totalSize)
     }
+}
+
+struct FreedEvent: Equatable {
+    let id = UUID()
+    let bytes: Int64
+    /// The "you can free" number before the cleanup, so the home screen can count down from it.
+    let reclaimableBefore: Int64
 }
 
 enum CategorySummary: Equatable {
