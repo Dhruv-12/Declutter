@@ -94,10 +94,7 @@ extension AppModel {
         var uniqueMedia = media.filter { seen.insert($0.id).inserted }
 
         // Skip anything already deleted elsewhere, so the "space freed" total only counts real deletions.
-        var existing = Set<String>()
-        PHAsset.fetchAssets(withLocalIdentifiers: uniqueMedia.map(\.id), options: nil).enumerateObjects { asset, _, _ in
-            existing.insert(asset.localIdentifier)
-        }
+        let existing = await PhotoLibrary.existingIDs(uniqueMedia.map(\.id))
         let alreadyGone = Set(uniqueMedia.map(\.id)).subtracting(existing)
         if !alreadyGone.isEmpty { removeDeletedMedia(alreadyGone) }
         uniqueMedia.removeAll { alreadyGone.contains($0.id) }

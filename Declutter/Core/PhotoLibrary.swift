@@ -29,6 +29,16 @@ nonisolated enum PhotoLibrary {
         return DashboardMedia(screenshots: screenshots, videos: videos)
     }
 
+    /// Which of these photos still exist, looked up off the main thread.
+    @concurrent
+    static func existingIDs(_ ids: [String]) async -> Set<String> {
+        var existing = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
+            existing.insert(asset.localIdentifier)
+        }
+        return existing
+    }
+
     static func fetchScreenshots() -> [PHAsset] {
         let options = PHFetchOptions()
         options.predicate = NSPredicate(

@@ -36,29 +36,49 @@ final class AppModel {
 
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
+    @ObservationIgnored private var startTask: Task<Void, Never>?
+    @ObservationIgnored private var scansStarted = false
 
     // MARK: - Lifecycle
+    //
+    // Launch work is split in two so the intro stays smooth:
+    // 1. `start()`, right after the intro's first frame: the quick permission read and the
+    //    storage figure, both on low-priority background threads.
+    // 2. `startScans()`, once the intro has finished: photo sizes and the similar-photo and
+    //    contact scans. These keep every CPU core busy, so running them during the intro
+    //    made its frames and timers late.
 
-    /// Runs once at launch, behind the intro. Every slow call happens off the main thread.
+    /// Reads permissions and storage. Safe to call more than once; it only runs once.
     func start() async {
-        guard !hasStarted else { return }
-        let statuses = await PermissionReader.current()
-        photoStatus = statuses.photos
-        contactsStatus = statuses.contacts
-        hasStarted = true
-        LaunchTimer.mark("Permissions read")
+        if startTask == nil {
+            startTask = Task(priority: .utility) {
+                let statuses = await PermissionReader.current()
+                photoStatus = statuses.photos
+                contactsStatus = statuses.contacts
+                hasStarted = true
+                LaunchTimer.note("Permissions read")
+                refreshStorage()
+            }
+        }
+        await startTask?.value
+    }
 
-        refreshStorage()
-        if contactsStatus.canRead { Task { await contacts.scan() } }
+    /// Starts the heavy scans. Called when the intro finishes.
+    func startScans() async {
+        await start()
+        guard !scansStarted else { return }
+        scansStarted = true
+        LaunchTimer.note("Scans started")
+        if contactsStatus.canRead { Task(priority: .utility) { await contacts.scan() } }
         await reloadLibrary()
     }
 
-    /// Asks iOS for used and free space in the background; it can take a while.
+    /// Asks iOS for used and free space in the background; it can take over a second.
     func refreshStorage() {
-        Task {
+        Task(priority: .utility) {
             let isFirstLoad = storage == nil
             storage = await DeviceStorage.load()
-            if isFirstLoad { LaunchTimer.mark("Storage loaded") }
+            if isFirstLoad { LaunchTimer.note("Storage loaded") }
         }
     }
 
@@ -100,7 +120,7 @@ final class AppModel {
 
     private func contactsAccessChanged() {
         if contactsStatus.canRead {
-            Task { await contacts.scan() }
+            Task(priority: .utility) { await contacts.scan() }
         } else {
             contacts.reset()
         }
@@ -130,7 +150,7 @@ final class AppModel {
         videoSelection.formIntersection(videos.map(\.id))
         isLoadingLibrary = false
         refreshStorage()
-        similar.removeMissingPhotos()
+        await similar.removeMissingPhotos()
 
         // Start the similar-photo scan in the background so the dashboard can show what it finds.
         if similar.state == .idle { similar.scan() }

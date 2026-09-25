@@ -5,7 +5,7 @@ struct DeclutterApp: App {
     @State private var model = AppModel()
 
     init() {
-        LaunchTimer.mark("App init started")
+        LaunchTimer.mark(.appInit)
         // Kept tiny on purpose: nothing here may delay the first frame.
         Task.detached(priority: .userInitiated) { FontWarmer.warm() }
     }
@@ -49,7 +49,11 @@ struct RootView: View {
                         BrandAppearance.apply()
                         showContent = true
                     },
-                    onFinished: { showIntro = false }
+                    onFinished: {
+                        showIntro = false
+                        // The heavy scans wait until the intro is gone, so they can't slow it down.
+                        Task { await model.startScans() }
+                    }
                 )
                 .zIndex(1)
             }

@@ -53,7 +53,8 @@ final class SimilarPhotosModel {
         scanID += 1
         let id = scanID
         let strictness = strictness
-        scanTask = Task { [weak self] in
+        // Low priority: the scan uses every CPU core, and the interface should stay smooth meanwhile.
+        scanTask = Task(priority: .utility) { [weak self] in
             let start = Date.now
             let result = await SimilarPhotoScanner.scan(strictness: strictness) { [weak self] progress in
                 guard let self, self.scanID == id, self.isScanning else { return }
@@ -77,13 +78,10 @@ final class SimilarPhotosModel {
     }
 
     /// Drops photos deleted outside the app (for example in the Photos app) from the results.
-    func removeMissingPhotos() {
+    func removeMissingPhotos() async {
         let ids = groups.flatMap { $0.items.map(\.id) }
         guard !ids.isEmpty else { return }
-        var existing = Set<String>()
-        PHAsset.fetchAssets(withLocalIdentifiers: ids, options: nil).enumerateObjects { asset, _, _ in
-            existing.insert(asset.localIdentifier)
-        }
+        let existing = await PhotoLibrary.existingIDs(ids)
         let missing = Set(ids).subtracting(existing)
         if !missing.isEmpty { remove(missing) }
     }
