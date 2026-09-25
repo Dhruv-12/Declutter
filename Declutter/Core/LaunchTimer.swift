@@ -35,6 +35,29 @@ enum LaunchTimer {
     private static let logger = Logger(subsystem: "com.dhruv.Declutter", category: "Launch")
     /// Milliseconds after process start for each stage reached so far.
     private static var reached: [Stage: TimeInterval] = [:]
+    /// CPU time the process had used when `App.init` ran. Unlike wall-clock time it doesn't
+    /// grow while the process is paused (for example while Xcode's debugger attaches), so it
+    /// shows how much real work happened before our code.
+    private static var cpuBeforeAppInit: TimeInterval?
+
+    /// True when a debugger (Xcode) is attached to the app.
+    nonisolated static var isDebuggerAttached: Bool {
+        var info = kinfo_proc()
+        var size = MemoryLayout<kinfo_proc>.stride
+        var mib: [Int32] = [CTL_KERN, KERN_PROC, KERN_PROC_PID, getpid()]
+        guard sysctl(&mib, u_int(mib.count), &info, &size, nil, 0) == 0 else { return false }
+        return (info.kp_proc.p_flag & P_TRACED) != 0
+    }
+
+    /// User plus system CPU time used by the whole process so far, in milliseconds.
+    nonisolated static var cpuTimeUsed: TimeInterval {
+        var usage = rusage()
+        getrusage(RUSAGE_SELF, &usage)
+        func ms(_ time: timeval) -> TimeInterval {
+            TimeInterval(time.tv_sec) * 1000 + TimeInterval(time.tv_usec) / 1000
+        }
+        return ms(usage.ru_utime) + ms(usage.ru_stime)
+    }
 
     private static var sinceLaunch: TimeInterval {
         (Date().timeIntervalSince1970 - processStart) * 1000
@@ -45,6 +68,7 @@ enum LaunchTimer {
         guard reached[stage] == nil else { return }
         let time = sinceLaunch
         reached[stage] = time
+        if stage == .appInit { cpuBeforeAppInit = cpuTimeUsed }
         output(String(format: "%@: %.0f ms after launch", stage.rawValue, time))
         if stage == .animationEnd { printSummary() }
     }
@@ -59,7 +83,8 @@ enum LaunchTimer {
               let start = reached[.animationStart], let end = reached[.animationEnd] else { return }
         let lines = [
             "── Launch stages ──",
-            String(format: "process start → App init:           %5.0f ms", appInit),
+            String(format: "process start → App init:           %5.0f ms (CPU actually used: %.0f ms)",
+                   appInit, cpuBeforeAppInit ?? 0),
             String(format: "App init → first intro frame:       %5.0f ms", firstFrame - appInit),
             String(format: "first frame → animation start:      %5.0f ms", start - firstFrame),
             String(format: "animation start → animation end:    %5.0f ms", end - start),
@@ -69,10 +94,17 @@ enum LaunchTimer {
                    end <= finishedTarget ? "✓" : "✗"),
         ]
         for line in lines { output(line) }
+        if isDebuggerAttached {
+            output("Xcode's debugger is attached. iOS keeps the app paused while it attaches, and that "
+                + "wait counts toward \"process start → App init\" even though users never see it. "
+                + "For real launch times, stop in Xcode, tap the app icon on the iPhone, and read "
+                + "these lines in the Mac's Console app (search [Launch]).")
+        }
     }
 
+    /// One line in the system log. Xcode's console shows it too, so it isn't also printed
+    /// (that made every line appear twice).
     private static func output(_ line: String) {
-        print("[Launch] \(line)")
         logger.notice("[Launch] \(line, privacy: .public)")
     }
 }

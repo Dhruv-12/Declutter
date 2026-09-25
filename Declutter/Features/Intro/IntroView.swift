@@ -70,11 +70,13 @@ struct IntroView: View {
         .accessibilityLabel("Declutter")
         .accessibilityAddTraits(.isHeader)
         .onAppear {
-            Haptics.prepareLight()
             // Start on the first screen refresh: the scattered frame is on screen, nothing waits.
             firstFrame.wait {
                 LaunchTimer.mark(.firstFrame)
                 play()
+                // Waking the Taptic Engine is slow, so it happens after the first frame;
+                // the haptic isn't needed until 0.6 s.
+                Haptics.prepareLight()
                 onFirstFrame()
             }
         }

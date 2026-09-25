@@ -6,7 +6,7 @@ struct DeclutterApp: App {
 
     init() {
         LaunchTimer.mark(.appInit)
-        // Kept tiny on purpose: nothing here may delay the first frame.
+        // Nothing slow here: this runs before the first frame. The font loads on another thread.
         Task.detached(priority: .userInitiated) { FontWarmer.warm() }
     }
 
