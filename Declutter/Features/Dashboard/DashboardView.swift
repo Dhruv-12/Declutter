@@ -44,7 +44,7 @@ struct DashboardView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if model.selectedCount > 0 {
-                    SelectionBar(count: model.selectedCount, bytes: model.selectedBytes, actionTitle: "Review All") {
+                    SelectionBar(count: model.selectedCount, bytes: model.selectedBytes) {
                         reviewPlan = model.makePlan()
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))

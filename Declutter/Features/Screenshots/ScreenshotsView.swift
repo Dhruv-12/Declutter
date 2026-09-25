@@ -17,7 +17,7 @@ struct ScreenshotsView: View {
             .navigationTitle("Screenshots")
             .safeAreaInset(edge: .bottom) {
                 if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes, actionTitle: "Review") {
+                    SelectionBar(count: selection.count, bytes: selectedBytes) {
                         reviewPlan = model.makePlan(for: [.screenshots])
                     }
                         .transition(.move(edge: .bottom).combined(with: .opacity))

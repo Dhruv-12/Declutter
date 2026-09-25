@@ -16,7 +16,7 @@ struct SimilarPhotosView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !similar.selection.isEmpty {
-                    SelectionBar(count: similar.selection.count, bytes: similar.selectedItems.totalSize, actionTitle: "Review") {
+                    SelectionBar(count: similar.selection.count, bytes: similar.selectedItems.totalSize) {
                         reviewPlan = model.makePlan(for: [.similarPhotos])
                     }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -151,7 +151,7 @@ private struct SimilarGroupCard: View {
                 ForEach(group.items) { item in
                     let isBest = item.id == group.bestID
                     let isSelected = similar.selection.contains(item.id)
-                    SelectableThumbnail(asset: item.asset, isSelected: isSelected, badge: isBest ? "★ Best" : nil)
+                    SelectableThumbnail(asset: item.asset, isSelected: isSelected, isBest: isBest)
                         .aspectRatio(1, contentMode: .fit)
                         .onTapGesture { similar.toggle(item.id) }
                         .contextMenu {

@@ -4,10 +4,15 @@ import SwiftUI
 struct DeclutterApp: App {
     @State private var model = AppModel()
 
+    init() {
+        BrandAppearance.apply()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(model)
+                .tint(Theme.pine)
         }
     }
 }

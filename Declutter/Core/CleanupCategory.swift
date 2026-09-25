@@ -10,10 +10,10 @@ enum CleanupCategory: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .similarPhotos: "Similar Photos"
+        case .similarPhotos: "Similar photos"
         case .screenshots: "Screenshots"
-        case .largeVideos: "Large Videos"
-        case .duplicateContacts: "Duplicate Contacts"
+        case .largeVideos: "Large videos"
+        case .duplicateContacts: "Duplicate contacts"
         }
     }
 
@@ -26,14 +26,8 @@ enum CleanupCategory: String, CaseIterable, Identifiable {
         }
     }
 
-    var tint: Color {
-        switch self {
-        case .similarPhotos: .indigo
-        case .screenshots: .orange
-        case .largeVideos: .pink
-        case .duplicateContacts: .green
-        }
-    }
+    /// Every category uses the brand colour; categories are told apart by icon and name.
+    var tint: Color { Theme.pine }
 
     var needsPhotos: Bool { self != .duplicateContacts }
 }

@@ -26,8 +26,8 @@ struct PermissionBanners: View {
                 title: "Allow photo access",
                 message: "Needed to find screenshots, large videos and similar photos. Scanning happens only on this iPhone."
             ) {
-                Button("Allow Photos") { Task { await model.requestPhotoAccess() } }
-                    .buttonStyle(.borderedProminent)
+                Button("Allow photo access") { Task { await model.requestPhotoAccess() } }
+                    .buttonStyle(.compact(.primary))
             }
         case .denied, .restricted:
             Banner(
@@ -36,7 +36,7 @@ struct PermissionBanners: View {
                 message: "Turn on Photos access in Settings to scan screenshots, videos and similar photos."
             ) {
                 Button("Open Settings") { SystemSettings.open() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.compact(.primary))
             }
         case .limited:
             Banner(
@@ -44,12 +44,12 @@ struct PermissionBanners: View {
                 title: "Limited photo access",
                 message: "Declutter can only see the photos you chose, so results only cover those."
             ) {
-                Button("Choose More") {
+                Button("Choose more photos") {
                     SystemSettings.presentLimitedPhotoPicker { Task { await model.photoAccessChanged() } }
                 }
-                    .buttonStyle(.bordered)
-                Button("Allow All") { SystemSettings.open() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.compact(.secondary))
+                Button("Allow full access") { SystemSettings.open() }
+                    .buttonStyle(.compact(.primary))
             }
         default:
             EmptyView()
@@ -64,8 +64,8 @@ struct PermissionBanners: View {
                 title: "Allow contacts access",
                 message: "Needed to find duplicate contacts. Your contacts never leave this iPhone."
             ) {
-                Button("Allow Contacts") { Task { await model.requestContactsAccess() } }
-                    .buttonStyle(.borderedProminent)
+                Button("Allow contacts access") { Task { await model.requestContactsAccess() } }
+                    .buttonStyle(.compact(.primary))
             }
         } else if status == .denied || status == .restricted {
             Banner(
@@ -74,7 +74,7 @@ struct PermissionBanners: View {
                 message: "Turn on Contacts access in Settings to find duplicate contacts."
             ) {
                 Button("Open Settings") { SystemSettings.open() }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.compact(.primary))
             }
         } else if status.isLimited {
             Banner(
@@ -82,10 +82,10 @@ struct PermissionBanners: View {
                 title: "Limited contacts access",
                 message: "Declutter can only check the contacts you chose for duplicates."
             ) {
-                Button("Choose More") { showContactPicker = true }
-                    .buttonStyle(.bordered)
-                Button("Allow All") { SystemSettings.open() }
-                    .buttonStyle(.borderedProminent)
+                Button("Choose more contacts") { showContactPicker = true }
+                    .buttonStyle(.compact(.secondary))
+                Button("Allow full access") { SystemSettings.open() }
+                    .buttonStyle(.compact(.primary))
             }
         }
     }
@@ -102,24 +102,26 @@ struct Banner<Actions: View>: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 Image(systemName: icon)
-                    .font(.title2)
-                    .foregroundStyle(tint)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(Theme.pine)
                     .frame(width: 32)
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title).font(.headline)
+                    Text(title)
+                        .font(.heading(.headline))
+                        .foregroundStyle(Theme.pine)
                     Text(message)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            HStack { actions }
-                .controlSize(.small)
-                .padding(.leading, 44)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: Theme.gap) { actions }
+                VStack(alignment: .leading, spacing: Theme.gap) { actions }
+            }
+            .padding(.leading, 44)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(tint.opacity(0.1), in: .rect(cornerRadius: 16))
+        .card()
     }
 }
 

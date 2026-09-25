@@ -34,7 +34,7 @@ struct LargeVideosView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes, actionTitle: "Review") {
+                    SelectionBar(count: selection.count, bytes: selectedBytes) {
                         reviewPlan = model.makePlan(for: [.largeVideos])
                     }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
