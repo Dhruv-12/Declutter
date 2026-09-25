@@ -25,15 +25,16 @@ say() { print -P "%F{cyan}▶ $*%f" }
 
 # MARK: Simulator
 
-RUNTIME=$(xcrun simctl list runtimes available -j | python3 -c '
+# Newest iOS runtime, and the first iPhone it supports (Pro, not Max/Plus).
+read RUNTIME DEVICE_TYPE < <(xcrun simctl list runtimes available -j | python3 -c '
 import json, sys
 runtimes = [r for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS" and r["isAvailable"]]
-print(runtimes[-1]["identifier"] if runtimes else "")')
-[[ -z "$RUNTIME" ]] && { print "No iOS simulator runtime. Install one: xcodebuild -downloadPlatform iOS"; exit 1 }
-DEVICE_TYPE=$(xcrun simctl list devicetypes -j | python3 -c '
-import json, sys
-types = [t["identifier"] for t in json.load(sys.stdin)["devicetypes"] if t["name"].startswith("iPhone") and "Max" not in t["name"] and "Plus" not in t["name"]]
-print(types[-1])')
+if runtimes:
+    runtime = runtimes[-1]
+    phones = [t for t in runtime["supportedDeviceTypes"]
+              if t["name"].startswith("iPhone") and "Max" not in t["name"] and "Plus" not in t["name"]]
+    print(runtime["identifier"], phones[0]["identifier"])')
+[[ -z "${RUNTIME:-}" ]] && { print "No iOS simulator runtime. Install one: xcodebuild -downloadPlatform iOS"; exit 1 }
 
 for old in $(xcrun simctl list devices -j | python3 -c "
 import json, sys
