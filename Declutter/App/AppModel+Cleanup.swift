@@ -75,7 +75,17 @@ extension AppModel {
 
         // Photos first: iOS asks for confirmation, and if the user declines we stop before touching contacts.
         var seen = Set<String>()
-        let uniqueMedia = media.filter { seen.insert($0.id).inserted }
+        var uniqueMedia = media.filter { seen.insert($0.id).inserted }
+
+        // Skip anything already deleted elsewhere, so the "space freed" total only counts real deletions.
+        var existing = Set<String>()
+        PHAsset.fetchAssets(withLocalIdentifiers: uniqueMedia.map(\.id), options: nil).enumerateObjects { asset, _, _ in
+            existing.insert(asset.localIdentifier)
+        }
+        let alreadyGone = Set(uniqueMedia.map(\.id)).subtracting(existing)
+        if !alreadyGone.isEmpty { removeDeletedMedia(alreadyGone) }
+        uniqueMedia.removeAll { alreadyGone.contains($0.id) }
+
         if !uniqueMedia.isEmpty {
             let ids = uniqueMedia.map(\.id)
             do {
