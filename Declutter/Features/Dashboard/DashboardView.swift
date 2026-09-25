@@ -48,6 +48,8 @@ struct DashboardView: View {
         switch category {
         case .screenshots:
             ScreenshotsView()
+        case .largeVideos:
+            LargeVideosView()
         default:
             ContentUnavailableView(category.title, systemImage: category.systemImage, description: Text("Coming soon."))
         }
