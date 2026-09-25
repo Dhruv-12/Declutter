@@ -238,13 +238,22 @@ struct MergePreviewSheet: View {
                 } header: {
                     Text("Merged contact")
                 } footer: {
-                    Text("Other details like addresses and birthdays are combined too.")
+                    Text("Addresses, birthdays, dates, relations and social profiles are combined too.")
                 }
 
-                Section("These \(group.contacts.count) contacts become one") {
+                Section {
                     ForEach(group.contacts) { contact in
-                        ContactRow(contact: contact)
+                        HStack {
+                            ContactRow(contact: contact)
+                            Text(contact.id == group.primary.id ? "Kept" : "Deleted")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(contact.id == group.primary.id ? .green : .red)
+                        }
                     }
+                } header: {
+                    Text("These \(group.contacts.count) contacts become one")
+                } footer: {
+                    Text("After their details are copied, the other \(group.contacts.count - 1) contact\(group.contacts.count == 2 ? " is" : "s are") permanently deleted. Notes can't be read by apps, so any notes on them won't be copied. Check them in the Contacts app first if they matter.")
                 }
 
                 if let errorMessage {

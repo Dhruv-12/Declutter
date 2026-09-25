@@ -192,32 +192,52 @@ nonisolated enum ContactsService {
 
     // MARK: - Changing contacts
 
-    /// Copies every detail from the other contacts into `primaryID`, then deletes the others.
+    /// Copies every detail apps are allowed to read from the other contacts into `primaryID`,
+    /// then deletes the others. (Notes need a special Apple entitlement, so they can't be copied.)
     @concurrent
     static func merge(_ ids: [String], into primaryID: String) async throws {
         let store = CNContactStore()
         let keys = summaryKeys + [
-            CNContactImageDataKey as CNKeyDescriptor,
-            CNContactMiddleNameKey as CNKeyDescriptor,
-            CNContactDepartmentNameKey as CNKeyDescriptor,
-        ]
+            CNContactImageDataKey,
+            CNContactNamePrefixKey,
+            CNContactMiddleNameKey,
+            CNContactNameSuffixKey,
+            CNContactPreviousFamilyNameKey,
+            CNContactPhoneticGivenNameKey,
+            CNContactPhoneticMiddleNameKey,
+            CNContactPhoneticFamilyNameKey,
+            CNContactDepartmentNameKey,
+            CNContactNonGregorianBirthdayKey,
+            CNContactDatesKey,
+            CNContactSocialProfilesKey,
+            CNContactInstantMessageAddressesKey,
+            CNContactRelationsKey,
+        ].map { $0 as CNKeyDescriptor }
         let contacts = try store.unifiedContacts(
             matching: CNContact.predicateForContacts(withIdentifiers: ids),
             keysToFetch: keys
         )
-        guard let primary = contacts.first(where: { $0.identifier == primaryID })?.mutableCopy() as? CNMutableContact
+        // If any contact changed or vanished since the preview, stop rather than merge something unexpected.
+        guard contacts.count == ids.count, let primary = contacts.first(where: { $0.identifier == primaryID })?.mutableCopy() as? CNMutableContact
         else { throw ContactsError.notFound }
 
         let request = CNSaveRequest()
         for other in contacts where other.identifier != primaryID {
+            fillIfEmpty(&primary.namePrefix, other.namePrefix)
             fillIfEmpty(&primary.givenName, other.givenName)
             fillIfEmpty(&primary.middleName, other.middleName)
             fillIfEmpty(&primary.familyName, other.familyName)
+            fillIfEmpty(&primary.nameSuffix, other.nameSuffix)
+            fillIfEmpty(&primary.previousFamilyName, other.previousFamilyName)
+            fillIfEmpty(&primary.phoneticGivenName, other.phoneticGivenName)
+            fillIfEmpty(&primary.phoneticMiddleName, other.phoneticMiddleName)
+            fillIfEmpty(&primary.phoneticFamilyName, other.phoneticFamilyName)
             fillIfEmpty(&primary.nickname, other.nickname)
             fillIfEmpty(&primary.organizationName, other.organizationName)
             fillIfEmpty(&primary.departmentName, other.departmentName)
             fillIfEmpty(&primary.jobTitle, other.jobTitle)
             if primary.birthday == nil { primary.birthday = other.birthday }
+            if primary.nonGregorianBirthday == nil { primary.nonGregorianBirthday = other.nonGregorianBirthday }
             if primary.imageData == nil { primary.imageData = other.imageData }
 
             primary.phoneNumbers = mergeValues(primary.phoneNumbers, other.phoneNumbers) {
@@ -231,6 +251,18 @@ nonisolated enum ContactsService {
             }
             primary.postalAddresses = mergeValues(primary.postalAddresses, other.postalAddresses) {
                 CNPostalAddressFormatter.string(from: $0, style: .mailingAddress).lowercased()
+            }
+            primary.dates = mergeValues(primary.dates, other.dates) {
+                "\($0.year)-\($0.month)-\($0.day)"
+            }
+            primary.socialProfiles = mergeValues(primary.socialProfiles, other.socialProfiles) {
+                "\($0.service)|\($0.username)|\($0.urlString)".lowercased()
+            }
+            primary.instantMessageAddresses = mergeValues(primary.instantMessageAddresses, other.instantMessageAddresses) {
+                "\($0.service)|\($0.username)".lowercased()
+            }
+            primary.contactRelations = mergeValues(primary.contactRelations, other.contactRelations) {
+                $0.name.lowercased()
             }
 
             if let removable = other.mutableCopy() as? CNMutableContact {
