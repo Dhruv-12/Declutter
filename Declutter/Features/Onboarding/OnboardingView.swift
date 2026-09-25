@@ -8,61 +8,56 @@ struct OnboardingView: View {
     let onFinish: () -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            ScrollView {
-                VStack(spacing: 28) {
-                    Image("Logo")
-                        .resizable()
-                        .frame(width: 96, height: 96)
-                        .clipShape(.rect(cornerRadius: 22))
-                        .shadow(color: .black.opacity(0.15), radius: 10, y: 4)
-                        .padding(.top, 40)
+        ScrollView {
+            VStack(alignment: .leading, spacing: Theme.spacing * 2) {
+                Image("Logo")
+                    .resizable()
+                    .frame(width: 88, height: 88)
+                    .clipShape(.rect(cornerRadius: 22))
+                    .accessibilityHidden(true)
+                    .padding(.top, 48)
 
-                    VStack(spacing: 8) {
-                        Text("Welcome to Declutter")
-                            .font(.largeTitle.bold())
-                            .multilineTextAlignment(.center)
-                        Text("Find screenshots, large videos, similar photos and duplicate contacts, then clear them out. You review everything first.")
-                            .font(.body)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-
-                    VStack(spacing: 12) {
-                        PermissionRow(
-                            icon: "photo.on.rectangle", tint: .indigo,
-                            title: "Photos",
-                            reason: "To find screenshots, large videos and similar shots.",
-                            state: photoState
-                        ) {
-                            Task { await model.requestPhotoAccess() }
-                        }
-                        PermissionRow(
-                            icon: "person.2.fill", tint: .green,
-                            title: "Contacts",
-                            reason: "To find duplicate contacts you can merge.",
-                            state: contactsState
-                        ) {
-                            Task { await model.requestContactsAccess() }
-                        }
-                    }
-
-                    Label("Everything is scanned on this iPhone. Nothing is uploaded, and nothing is deleted without your approval.", systemImage: "lock.shield.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: Theme.gap + 4) {
+                    Text("Give your iPhone some breathing room")
+                        .font(.heading(.largeTitle))
+                        .foregroundStyle(Theme.pine)
+                    Text("Declutter finds screenshots, large videos, similar photos and duplicate contacts. You check everything before anything is removed.")
+                        .font(.body)
+                        .foregroundStyle(Theme.secondaryText)
                 }
-                .padding(.horizontal, 24)
-            }
 
-            Button(action: onFinish) {
-                Text(hasAnyAccess ? "Continue" : "Skip for Now")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                VStack(spacing: Theme.gap + 4) {
+                    PermissionRow(
+                        icon: "photo.on.rectangle",
+                        title: "Photos",
+                        reason: "To find screenshots, large videos and similar shots.",
+                        state: photoState
+                    ) {
+                        Task { await model.requestPhotoAccess() }
+                    }
+                    PermissionRow(
+                        icon: "person.2.fill",
+                        title: "Contacts",
+                        reason: "To find duplicate contacts you can merge.",
+                        state: contactsState
+                    ) {
+                        Task { await model.requestContactsAccess() }
+                    }
+                }
+
+                Label("Everything is checked on this iPhone. Nothing is uploaded, and nothing is deleted without your approval.", systemImage: "lock.fill")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondaryText)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .padding(24)
+            .padding(.horizontal, Theme.page)
+        }
+        .screenBackground()
+        .safeAreaInset(edge: .bottom) {
+            Button(hasAnyAccess ? "Continue" : "Skip for now", action: onFinish)
+                .buttonStyle(hasAnyAccess ? .primary : .secondary)
+                .padding(.horizontal, Theme.page)
+                .padding(.vertical, 12)
+                .background(Theme.mist.ignoresSafeArea())
         }
     }
 
@@ -92,7 +87,6 @@ struct PermissionRow: View {
     enum State { case ask, granted, limited, denied }
 
     let icon: String
-    let tint: Color
     let title: String
     let reason: String
     let state: State
@@ -101,45 +95,47 @@ struct PermissionRow: View {
     var body: some View {
         HStack(spacing: 14) {
             Image(systemName: icon)
-                .font(.title3)
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(tint.gradient, in: .rect(cornerRadius: 12))
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(Theme.pine)
+                .frame(width: 42, height: 42)
+                .background(Theme.mist, in: .rect(cornerRadius: Theme.smallRadius))
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(reason)
+                Text(title)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.pine)
+                Text(stateText ?? reason)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 8)
             trailing
         }
-        .padding()
-        .background(Color(.secondarySystemBackground), in: .rect(cornerRadius: 16))
+        .card()
+    }
+
+    private var stateText: String? {
+        switch state {
+        case .ask, .granted: nil
+        case .limited: "Only the items you picked. You can allow more in Settings."
+        case .denied: "Turned off. You can turn it on in Settings."
+        }
     }
 
     @ViewBuilder private var trailing: some View {
         switch state {
         case .ask:
             Button("Allow", action: request)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.small)
+                .buttonStyle(.compact(.primary))
         case .granted:
             Image(systemName: "checkmark.circle.fill")
                 .font(.title2)
-                .foregroundStyle(.green)
+                .foregroundStyle(Theme.mint)
                 .accessibilityLabel("Allowed")
-        case .limited:
-            Button("Limited") { SystemSettings.open() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .tint(.orange)
-        case .denied:
+        case .limited, .denied:
             Button("Settings") { SystemSettings.open() }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
+                .buttonStyle(.compact(.onCard))
         }
     }
 }

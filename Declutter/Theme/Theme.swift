@@ -93,9 +93,10 @@ extension UIColor {
 
 // MARK: - Buttons
 
-/// Full-width buttons: Pine for main actions, Coral for deleting, Stone for secondary actions.
+/// Full-width buttons: Pine for main actions, Coral for deleting, Stone for secondary actions,
+/// Mist for secondary actions that sit on a Stone card.
 struct BrandButtonStyle: ButtonStyle {
-    enum Kind { case primary, destructive, secondary, secondaryDestructive }
+    enum Kind { case primary, destructive, secondary, secondaryDestructive, onCard }
 
     var kind: Kind = .primary
     var fullWidth = true
@@ -122,7 +123,7 @@ struct BrandButtonStyle: ButtonStyle {
         switch kind {
         case .primary: Theme.onPine
         case .destructive: Theme.onCoral
-        case .secondary: Theme.pine
+        case .secondary, .onCard: Theme.pine
         case .secondaryDestructive: Theme.coralText
         }
     }
@@ -132,6 +133,7 @@ struct BrandButtonStyle: ButtonStyle {
         case .primary: Theme.pine
         case .destructive: Theme.coral
         case .secondary, .secondaryDestructive: Theme.stone
+        case .onCard: Theme.mist
         }
     }
 }

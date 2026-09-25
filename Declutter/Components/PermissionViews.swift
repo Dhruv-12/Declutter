@@ -47,7 +47,7 @@ struct PermissionBanners: View {
                 Button("Choose more photos") {
                     SystemSettings.presentLimitedPhotoPicker { Task { await model.photoAccessChanged() } }
                 }
-                    .buttonStyle(.compact(.secondary))
+                    .buttonStyle(.compact(.onCard))
                 Button("Allow full access") { SystemSettings.open() }
                     .buttonStyle(.compact(.primary))
             }
@@ -83,7 +83,7 @@ struct PermissionBanners: View {
                 message: "Declutter can only check the contacts you chose for duplicates."
             ) {
                 Button("Choose more contacts") { showContactPicker = true }
-                    .buttonStyle(.compact(.secondary))
+                    .buttonStyle(.compact(.onCard))
                 Button("Allow full access") { SystemSettings.open() }
                     .buttonStyle(.compact(.primary))
             }
