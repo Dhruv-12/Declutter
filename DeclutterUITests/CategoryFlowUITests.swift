@@ -79,7 +79,10 @@ final class CategoryFlowUITests: XCTestCase {
         waitForLabel(app.category("largeVideos"), contains: "2 videos")
     }
 
-    func testSimilarPhotos() {
+    func testSimilarPhotos() throws {
+        // Vision feature prints don't tell images apart on the iOS Simulator, so no sets are found
+        // there. See visionTellsSimilarFromDifferentImages. Runs on a real iPhone.
+        try XCTSkipIf(onSimulator, "Similar-photo matching needs Vision, which doesn't work on the iOS Simulator.")
         app.openCategory("similarPhotos")
         // One burst of three near-identical shots and one pair saved twice: 2 sets, 3 extras.
         waitForLabel(app.screenSummary, startsWith: "2 sets · 3 extra photos", timeout: 240)

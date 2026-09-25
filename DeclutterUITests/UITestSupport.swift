@@ -1,5 +1,14 @@
 import XCTest
 
+/// True when the UI tests run on the iOS Simulator.
+let onSimulator: Bool = {
+    #if targetEnvironment(simulator)
+    true
+    #else
+    false
+    #endif
+}()
+
 /// Scripts/run-tests.sh prepares the simulator for one phase at a time (seeded library, denied
 /// permissions, empty library, …) and passes the phase name. Tests for other phases skip themselves.
 enum Phase {

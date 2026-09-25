@@ -1,7 +1,17 @@
 import Contacts
 import CoreGraphics
+import CoreImage
 import Foundation
 @testable import Declutter
+
+/// True when the tests run on the iOS Simulator.
+let isSimulator: Bool = {
+    #if targetEnvironment(simulator)
+    true
+    #else
+    false
+    #endif
+}()
 
 /// Small builders shared by the unit tests.
 enum Fixture {
@@ -78,6 +88,25 @@ enum Fixture {
                     context.fill(CGRect(x: column * cell, y: row * cell, width: cell, height: cell))
                 }
             }
+        }
+    }
+
+    /// A real Gaussian blur, like an out-of-focus or shaken photo.
+    static func gaussianBlurred(_ image: CGImage, radius: Double) -> CGImage {
+        let input = CIImage(cgImage: image)
+        let output = input.clampedToExtent()
+            .applyingGaussianBlur(sigma: radius)
+            .cropped(to: input.extent)
+        return CIContext().createCGImage(output, from: input.extent)!
+    }
+
+    /// A flat background with one small, sharp square: sharp, but mostly empty.
+    static func smallSharpSubject(size: Int = 256) -> CGImage {
+        image(width: size, height: size) { context in
+            context.setFillColor(gray: 0.8, alpha: 1)
+            context.fill(CGRect(x: 0, y: 0, width: size, height: size))
+            context.setFillColor(gray: 0.1, alpha: 1)
+            context.fill(CGRect(x: size / 2 - 12, y: size / 2 - 12, width: 24, height: 24))
         }
     }
 
