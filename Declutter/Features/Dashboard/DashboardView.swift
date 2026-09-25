@@ -2,6 +2,7 @@ import SwiftUI
 
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
+    @State private var reviewPlan: CleanupPlan?
 
     var body: some View {
         NavigationStack {
@@ -41,6 +42,16 @@ struct DashboardView: View {
                 model.refreshPermissions()
                 await model.reloadLibrary()
             }
+            .safeAreaInset(edge: .bottom) {
+                if model.selectedCount > 0 {
+                    SelectionBar(count: model.selectedCount, bytes: model.selectedBytes, actionTitle: "Review All") {
+                        reviewPlan = model.makePlan()
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.snappy, value: model.selectedCount == 0)
+            .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
         }
     }
 

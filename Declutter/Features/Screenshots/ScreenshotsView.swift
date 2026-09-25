@@ -4,31 +4,33 @@ import SwiftUI
 /// Every screenshot in one grid, grouped by month, with multi-select.
 struct ScreenshotsView: View {
     @Environment(AppModel.self) private var model
-    @State private var selection: Set<String> = []
+    @State private var reviewPlan: CleanupPlan?
 
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 4)]
 
     private var items: [MediaItem] { model.screenshots }
 
+    private var selection: Set<String> { model.screenshotSelection }
+
     var body: some View {
-        content
+        @Bindable var model = model
+        return content
             .navigationTitle("Screenshots")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    SelectAllButton(allIDs: items.map(\.id), selection: $selection)
+                    SelectAllButton(allIDs: items.map(\.id), selection: $model.screenshotSelection)
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes)
+                    SelectionBar(count: selection.count, bytes: selectedBytes, actionTitle: "Review") {
+                        reviewPlan = model.makePlan(for: [.screenshots])
+                    }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: selection.isEmpty)
-            .onChange(of: items) { _, newItems in
-                // Drop selections for screenshots that no longer exist.
-                selection.formIntersection(newItems.map(\.id))
-            }
+            .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
     }
 
     @ViewBuilder private var content: some View {
@@ -76,7 +78,7 @@ struct ScreenshotsView: View {
                         SectionHeader(
                             title: section.title,
                             ids: section.items.map(\.id),
-                            selection: $selection
+                            selection: Binding(get: { model.screenshotSelection }, set: { model.screenshotSelection = $0 })
                         )
                     }
                 }
@@ -86,7 +88,11 @@ struct ScreenshotsView: View {
     }
 
     private func toggle(_ id: String) {
-        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+        if selection.contains(id) {
+            model.screenshotSelection.remove(id)
+        } else {
+            model.screenshotSelection.insert(id)
+        }
     }
 
     private var selectedBytes: Int64 {

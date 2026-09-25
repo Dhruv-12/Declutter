@@ -5,7 +5,7 @@ import SwiftUI
 /// All videos from largest to smallest, with a preview player and multi-select.
 struct LargeVideosView: View {
     @Environment(AppModel.self) private var model
-    @State private var selection: Set<String> = []
+    @State private var reviewPlan: CleanupPlan?
     @State private var minimumSize: SizeFilter = .all
     @State private var previewing: MediaItem?
 
@@ -14,8 +14,11 @@ struct LargeVideosView: View {
         model.videos.filter { $0.size >= minimumSize.bytes }
     }
 
+    private var selection: Set<String> { model.videoSelection }
+
     var body: some View {
-        content
+        @Bindable var model = model
+        return content
             .navigationTitle("Large Videos")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -30,19 +33,19 @@ struct LargeVideosView: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    SelectAllButton(allIDs: items.map(\.id), selection: $selection)
+                    SelectAllButton(allIDs: items.map(\.id), selection: $model.videoSelection)
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 if !selection.isEmpty {
-                    SelectionBar(count: selection.count, bytes: selectedBytes)
+                    SelectionBar(count: selection.count, bytes: selectedBytes, actionTitle: "Review") {
+                        reviewPlan = model.makePlan(for: [.largeVideos])
+                    }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: selection.isEmpty)
-            .onChange(of: model.videos) { _, videos in
-                selection.formIntersection(videos.map(\.id))
-            }
+            .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
             .sheet(item: $previewing) { item in
                 VideoPreviewView(
                     item: item,
@@ -97,7 +100,11 @@ struct LargeVideosView: View {
     }
 
     private func toggle(_ id: String) {
-        if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
+        if selection.contains(id) {
+            model.videoSelection.remove(id)
+        } else {
+            model.videoSelection.insert(id)
+        }
     }
 
     private var selectedBytes: Int64 {

@@ -4,8 +4,7 @@ import SwiftUI
 struct DuplicateContactsView: View {
     @Environment(AppModel.self) private var model
     @State private var merging: ContactGroup?
-    @State private var confirmingDelete = false
-    @State private var errorMessage: String?
+    @State private var reviewPlan: CleanupPlan?
 
     private var contacts: ContactsModel { model.contacts }
 
@@ -14,8 +13,10 @@ struct DuplicateContactsView: View {
             .navigationTitle("Duplicate Contacts")
             .safeAreaInset(edge: .bottom) {
                 if !contacts.selection.isEmpty {
-                    ContactSelectionBar(count: contacts.selection.count) { confirmingDelete = true }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                    ContactSelectionBar(count: contacts.selection.count) {
+                        reviewPlan = model.makePlan(for: [.duplicateContacts])
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: contacts.selection.isEmpty)
@@ -25,28 +26,7 @@ struct DuplicateContactsView: View {
                     try await contacts.merge(group)
                 }
             }
-            .confirmationDialog(
-                "Delete \(contacts.selection.count) contacts?",
-                isPresented: $confirmingDelete,
-                titleVisibility: .visible
-            ) {
-                Button("Delete Contacts", role: .destructive) {
-                    let ids = Array(contacts.selection)
-                    Task {
-                        do { try await contacts.delete(ids) } catch { errorMessage = error.localizedDescription }
-                    }
-                }
-            } message: {
-                Text("Deleted contacts can't be recovered. To keep their details, merge them instead.")
-            }
-            .alert("Couldn't Update Contacts", isPresented: Binding(
-                get: { errorMessage != nil },
-                set: { if !$0 { errorMessage = nil } }
-            )) {
-                Button("OK") {}
-            } message: {
-                Text(errorMessage ?? "")
-            }
+            .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
     }
 
     @ViewBuilder private var content: some View {
@@ -217,7 +197,7 @@ struct ContactAvatar: View {
 
 private struct ContactSelectionBar: View {
     let count: Int
-    let onDelete: () -> Void
+    let onReview: () -> Void
 
     var body: some View {
         HStack {
@@ -225,7 +205,7 @@ private struct ContactSelectionBar: View {
                 .font(.headline)
                 .contentTransition(.numericText())
             Spacer()
-            Button("Delete", role: .destructive, action: onDelete)
+            Button("Review", action: onReview)
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
         }

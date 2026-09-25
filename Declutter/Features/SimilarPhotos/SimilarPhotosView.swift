@@ -4,6 +4,7 @@ import SwiftUI
 /// Groups of similar photos. The best shot in each group is kept; the rest are pre-selected.
 struct SimilarPhotosView: View {
     @Environment(AppModel.self) private var model
+    @State private var reviewPlan: CleanupPlan?
 
     private var similar: SimilarPhotosModel { model.similar }
 
@@ -15,11 +16,14 @@ struct SimilarPhotosView: View {
             }
             .safeAreaInset(edge: .bottom) {
                 if !similar.selection.isEmpty {
-                    SelectionBar(count: similar.selection.count, bytes: similar.selectedItems.totalSize)
+                    SelectionBar(count: similar.selection.count, bytes: similar.selectedItems.totalSize, actionTitle: "Review") {
+                        reviewPlan = model.makePlan(for: [.similarPhotos])
+                    }
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
             .animation(.snappy, value: similar.selection.isEmpty)
+            .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
             .onAppear {
                 if similar.state == .idle && model.photoStatus.canRead { similar.scan() }
             }

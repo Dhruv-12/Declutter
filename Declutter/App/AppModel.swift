@@ -14,6 +14,10 @@ final class AppModel {
     private(set) var videos: [MediaItem] = []
     private(set) var isLoadingLibrary = false
 
+    // What the user has picked in each screen. Kept here so it survives leaving the screen.
+    var screenshotSelection: Set<String> = []
+    var videoSelection: Set<String> = []
+
     let similar = SimilarPhotosModel()
     let contacts = ContactsModel()
 
@@ -72,6 +76,8 @@ final class AppModel {
         guard photoStatus.canRead else {
             screenshots = []
             videos = []
+            screenshotSelection = []
+            videoSelection = []
             similar.cancelAndReset()
             return
         }
@@ -82,11 +88,21 @@ final class AppModel {
         let media = await PhotoLibrary.loadDashboardMedia()
         screenshots = media.screenshots
         videos = media.videos
+        // Forget selections for anything that no longer exists.
+        screenshotSelection.formIntersection(screenshots.map(\.id))
+        videoSelection.formIntersection(videos.map(\.id))
         isLoadingLibrary = false
         refreshStorage()
 
         // Start the similar-photo scan in the background so the dashboard can show what it finds.
         if similar.state == .idle { similar.scan() }
+    }
+
+    func removeMedia(_ ids: Set<String>) {
+        screenshots.removeAll { ids.contains($0.id) }
+        videos.removeAll { ids.contains($0.id) }
+        screenshotSelection.subtract(ids)
+        videoSelection.subtract(ids)
     }
 
     /// Photo library change notifications arrive in bursts, so wait a moment before reloading.

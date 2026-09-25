@@ -68,6 +68,17 @@ final class SimilarPhotosModel {
         state = .idle
     }
 
+    /// Drops deleted photos. Groups left with a single photo are no longer duplicates.
+    func remove(_ ids: Set<String>) {
+        groups = groups.compactMap { group in
+            let remaining = group.items.filter { !ids.contains($0.id) }
+            guard remaining.count > 1 else { return nil }
+            let best = remaining.contains { $0.id == group.bestID } ? group.bestID : remaining[0].id
+            return SimilarGroup(id: group.id, items: remaining, bestID: best)
+        }
+        selection.subtract(ids)
+    }
+
     func toggle(_ id: String) {
         if selection.contains(id) { selection.remove(id) } else { selection.insert(id) }
     }
