@@ -153,14 +153,15 @@ nonisolated enum SimilarPhotoScanner {
     // MARK: - Fetching
 
     /// Every photo except screenshots (those have their own screen), oldest first.
+    ///
+    /// Screenshots are left out here rather than in the fetch: a Photos predicate of
+    /// "(mediaSubtypes & screenshot) == 0" silently matches nothing, which left the similar and
+    /// blurry scans with no photos at all.
     static func fetchPhotos() -> [PHAsset] {
         let options = PHFetchOptions()
-        options.predicate = NSPredicate(
-            format: "(mediaSubtypes & %ld) == 0",
-            Int(PHAssetMediaSubtype.photoScreenshot.rawValue)
-        )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         return PhotoLibrary.array(PHAsset.fetchAssets(with: .image, options: options))
+            .filter { !$0.mediaSubtypes.contains(.photoScreenshot) }
     }
 
     /// Small image from the on-device cache. Never downloads from iCloud.

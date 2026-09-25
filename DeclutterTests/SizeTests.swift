@@ -66,6 +66,17 @@ struct PhotoLibrarySizeTests {
         #expect(media.videos.totalSize == media.videos.reduce(0) { $0 + $1.size })
     }
 
+    /// The similar and blurry scans look at every photo except screenshots.
+    @Test func scansSeeEveryPhotoExceptScreenshots() throws {
+        let screenshots = PhotoLibrary.fetchScreenshots()
+        try #require(!screenshots.isEmpty, "Needs seeded screenshots")
+        let allImages = PHAsset.fetchAssets(with: .image, options: nil).count
+        let photos = SimilarPhotoScanner.fetchPhotos()
+        #expect(!photos.isEmpty)
+        #expect(photos.count == allImages - screenshots.count)
+        #expect(photos.allSatisfy { !$0.mediaSubtypes.contains(.photoScreenshot) })
+    }
+
     @Test func sizeCacheMatchesDirectLookup() throws {
         let videos = PhotoLibrary.fetchVideos()
         try #require(!videos.isEmpty, "Needs seeded videos")
