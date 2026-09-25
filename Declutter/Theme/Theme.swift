@@ -54,6 +54,7 @@ nonisolated enum Theme {
     static let plum = Color(light: 0x9150BA, dark: 0xC592E8)
     static let teal = Color(light: 0x13869A, dark: 0x5CC6D8)
     static let iris = Color(light: 0x5A5FD6, dark: 0x9EA2F5)
+    static let slate = Color(light: 0x56708F, dark: 0x9DB3CE)
 
     static let mistUI = UIColor(light: 0xF3F6F5, dark: 0x0B1412)
     static let pineUI = UIColor(light: 0x12332E, dark: 0xE2ECE8)

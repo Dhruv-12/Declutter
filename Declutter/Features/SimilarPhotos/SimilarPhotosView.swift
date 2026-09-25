@@ -190,9 +190,11 @@ private struct SimilarGroupCard: View {
     }
 }
 
-/// Progress while photos are compared: a wide bar like the home screen's storage bar.
+/// Progress while photos are checked: a wide bar like the home screen's storage bar.
 struct ScanProgressView: View {
     let progress: Double
+    var title = "Looking for similar photos"
+    var message = "This happens on your iPhone. You can leave this screen and the scan keeps going."
 
     var body: some View {
         VStack(alignment: .leading, spacing: Theme.spacing) {
@@ -210,10 +212,10 @@ struct ScanProgressView: View {
             }
             .frame(height: 22)
             VStack(alignment: .leading, spacing: 6) {
-                Text("Looking for similar photos")
+                Text(title)
                     .font(.heading(.title3))
                     .foregroundStyle(Theme.pine)
-                Text("This happens on your iPhone. You can leave this screen and the scan keeps going.")
+                Text(message)
                     .font(.subheadline)
                     .foregroundStyle(Theme.secondaryText)
             }

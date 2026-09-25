@@ -3,8 +3,10 @@
 #
 #   Scripts/run-tests.sh                 # all phases
 #   PHASES="unit ui" Scripts/run-tests.sh
+#   PHASES=feature FEATURE_TESTS="DeclutterTests/BlurDetectorTests DeclutterUITests/ToolUITests/testBlurryPhotos" \
+#     Scripts/run-tests.sh               # just these tests, on the standard library
 #
-# Phases: unit, ui, permissions (ask → denied → granted), empty, unique, large.
+# Phases: unit, ui, permissions (ask → denied → granted), empty, unique, large, feature.
 # Each phase erases the simulator, seeds it with `xcrun simctl addmedia`, sets permissions with
 # `xcrun simctl privacy`, then runs only the tests for that phase.
 # Results: build/tests/results/<phase>.xcresult, logs in build/tests/logs.
@@ -141,6 +143,12 @@ for phase in $PHASES; do
     large)
       fresh_device; seed large; install_app; permissions grant
       run large DeclutterUITests/EdgeCaseUITests/testLargeLibrary ;;
+    feature)
+      # Only the named tests, on the standard library with access granted (UI tests see phase "ui").
+      fresh_device; seed standard; install_app; permissions grant
+      RESULTS[feature]=""
+      run ui ${=FEATURE_TESTS:?Set FEATURE_TESTS to the tests to run}
+      RESULTS[feature]=${RESULTS[ui]}; unset "RESULTS[ui]" ;;
   esac
 done
 

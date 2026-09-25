@@ -4,12 +4,14 @@
 //   ./generate-test-media <output folder> <standard | unique | large> [photo count for large]
 //
 // standard: 3 near-identical shots taken seconds apart, 2 identical photos taken months apart,
-//           4 unique photos, 5 screenshots, 3 large videos, contacts with 3 duplicate groups.
+//           4 unique photos, 2 out-of-focus photos, 5 screenshots, 3 large videos,
+//           contacts with 3 duplicate groups.
 // unique:   8 unique photos and contacts with no duplicates.
 // large:    many unique photos (default 1500), with a near-identical partner for every 50th.
 
 import AVFoundation
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import Foundation
 import ImageIO
@@ -66,6 +68,13 @@ func render(_ scene: Scene, width: Int = 1200, height: Int = 1600, shift: CGFloa
         if shape.round { context.fillEllipse(in: rect) } else { context.fill(rect) }
     }
     return context.makeImage()!
+}
+
+/// An out-of-focus copy (Gaussian blur).
+func blurred(_ image: CGImage, radius: Double) -> CGImage {
+    let input = CIImage(cgImage: image)
+    let output = input.clampedToExtent().applyingGaussianBlur(sigma: radius).cropped(to: input.extent)
+    return CIContext().createCGImage(output, from: input.extent)!
 }
 
 let exifFormatter: DateFormatter = {
@@ -172,6 +181,12 @@ case "standard":
     for index in 0..<4 {
         write(render(scene(seed: 100 + index)), to: photos.appendingPathComponent("unique-\(index).jpg"),
               taken: date("2025:0\(index + 4):15 08:00:00"))
+    }
+    // Two out-of-focus photos, far apart in time, for Blurry photos.
+    for index in 0..<2 {
+        write(blurred(render(scene(seed: 400 + index)), radius: 30),
+              to: photos.appendingPathComponent("blurry-\(index).jpg"),
+              taken: date("2024:0\(index + 5):10 17:00:00"))
     }
     // Screenshots.
     for index in 0..<5 {

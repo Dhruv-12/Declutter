@@ -67,30 +67,35 @@ extension AppModel {
 
     private var homeSelectedMedia: [MediaItem] {
         var seen = Set<String>()
-        let all = CleanupCategory.allCases.flatMap(selectedMedia(in:)) + swipe.marked
+        let all = CleanupCategory.allCases.flatMap(selectedMedia(in:)) + toolSelections.flatMap(\.items)
         return all.filter { seen.insert($0.id).inserted }
     }
 
-    /// The home screen's Review All: every category plus photos marked in Swipe to sort,
-    /// each photo listed once.
+    /// What each tool has picked for deletion.
+    private var toolSelections: [(tool: Tool, items: [MediaItem])] {
+        [(.swipe, swipe.marked), (.blurry, blurry.selectedItems)]
+    }
+
+    /// The home screen's Review All: every category plus what the tools picked, each photo listed once.
     func makeHomePlan() -> CleanupPlan {
         let plan = makePlan()
-        let listed = Set(plan.mediaSections.flatMap { $0.items.map(\.id) })
-        let swiped = swipe.marked.filter { !listed.contains($0.id) }
-        return CleanupPlan(
-            mediaSections: plan.mediaSections + (swiped.isEmpty ? [] : [.init(tool: .swipe, items: swiped)]),
-            contacts: plan.contacts,
-            fullySelectedGroups: plan.fullySelectedGroups
-        )
+        var listed = Set(plan.mediaSections.flatMap { $0.items.map(\.id) })
+        var sections = plan.mediaSections
+        for (tool, items) in toolSelections {
+            let fresh = items.filter { listed.insert($0.id).inserted }
+            if !fresh.isEmpty { sections.append(.init(tool: tool, items: fresh)) }
+        }
+        return CleanupPlan(mediaSections: sections, contacts: plan.contacts, fullySelectedGroups: plan.fullySelectedGroups)
     }
 
     /// Photos marked in Swipe to sort.
-    func makeSwipePlan() -> CleanupPlan {
-        CleanupPlan(
-            mediaSections: swipe.marked.isEmpty ? [] : [.init(tool: .swipe, items: swipe.marked)],
-            contacts: [],
-            fullySelectedGroups: 0
-        )
+    func makeSwipePlan() -> CleanupPlan { toolPlan(.swipe, swipe.marked) }
+
+    /// Blurry photos the user selected.
+    func makeBlurryPlan() -> CleanupPlan { toolPlan(.blurry, blurry.selectedItems) }
+
+    private func toolPlan(_ tool: Tool, _ items: [MediaItem]) -> CleanupPlan {
+        CleanupPlan(mediaSections: items.isEmpty ? [] : [.init(tool: tool, items: items)], contacts: [], fullySelectedGroups: 0)
     }
 
     func selectedMedia(in category: CleanupCategory) -> [MediaItem] {
@@ -185,5 +190,6 @@ extension AppModel {
         removeMedia(ids)
         similar.remove(ids)
         swipe.remove(ids)
+        blurry.remove(ids)
     }
 }

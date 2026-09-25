@@ -145,7 +145,7 @@ struct DashboardView: View {
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(Tool.allCases) { tool in
                     NavigationLink(value: tool) {
-                        ToolTile(tool: tool)
+                        ToolTile(tool: tool, detail: toolDetail(tool))
                     }
                     .buttonStyle(.plain)
                     .accessibilityIdentifier("tool.\(tool.rawValue)")
@@ -154,10 +154,29 @@ struct DashboardView: View {
         }
     }
 
+    /// A live line on a tile, once there is something to report.
+    private func toolDetail(_ tool: Tool) -> String? {
+        switch tool {
+        case .swipe:
+            let marked = model.swipe.marked
+            return marked.isEmpty ? nil : "\(counted(marked.count, "photo")) marked"
+        case .blurry:
+            switch model.blurry.state {
+            case .idle: return nil
+            case .scanning(let progress): return "Scanning… \(Int(progress * 100))%"
+            case .done:
+                let photos = model.blurry.items
+                return photos.isEmpty ? "None found" : "\(counted(photos.count, "photo")) · \(ByteFormat.string(photos.totalSize))"
+            }
+        }
+    }
+
     @ViewBuilder private func destination(for tool: Tool) -> some View {
         switch tool {
         case .swipe:
             SwipeSortView()
+        case .blurry:
+            BlurryPhotosView()
         }
     }
 
@@ -395,6 +414,8 @@ struct CategoryRow: View {
 /// A tool on the home screen: colour icon, name and a short line about what it does.
 struct ToolTile: View {
     let tool: Tool
+    /// Live status, such as "12 photos · 40 MB"; replaces the description when set.
+    var detail: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -405,7 +426,7 @@ struct ToolTile: View {
                 Text(tool.title)
                     .font(.body.weight(.semibold))
                     .foregroundStyle(Theme.pine)
-                Text(tool.subtitle)
+                Text(detail ?? tool.subtitle)
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
                     .lineLimit(2, reservesSpace: true)

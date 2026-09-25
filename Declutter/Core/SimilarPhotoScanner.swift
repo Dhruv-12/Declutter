@@ -270,6 +270,17 @@ nonisolated enum SimilarPhotoScanner {
 
     /// Variance of the Laplacian: blurry images have few sharp edges, so a low value.
     static func sharpness(of image: CGImage) -> Double {
+        let values = laplacian(of: image)
+        guard !values.isEmpty else { return 0 }
+        let n = Double(values.count)
+        let mean = values.reduce(0, +) / n
+        return values.reduce(0) { $0 + $1 * $1 } / n - mean * mean
+    }
+
+    /// Edge strength at every pixel of a 256×256 grey copy (the Laplacian). Sharp edges give
+    /// large values; blur spreads edges out and shrinks them. Shared by the best-photo and
+    /// blurry-photo checks.
+    static func laplacian(of image: CGImage) -> [Double] {
         let side = 256
         var pixels = [UInt8](repeating: 0, count: side * side)
         pixels.withUnsafeMutableBytes { buffer in
@@ -282,20 +293,17 @@ nonisolated enum SimilarPhotoScanner {
             context.draw(image, in: CGRect(x: 0, y: 0, width: side, height: side))
         }
 
-        var sum = 0.0, sumOfSquares = 0.0
+        var values: [Double] = []
+        values.reserveCapacity((side - 2) * (side - 2))
         for y in 1..<(side - 1) {
             for x in 1..<(side - 1) {
                 let center = Double(pixels[y * side + x]) * 4
                 let neighbours = Double(pixels[(y - 1) * side + x]) + Double(pixels[(y + 1) * side + x])
                     + Double(pixels[y * side + x - 1]) + Double(pixels[y * side + x + 1])
-                let laplacian = center - neighbours
-                sum += laplacian
-                sumOfSquares += laplacian * laplacian
+                values.append(center - neighbours)
             }
         }
-        let n = Double((side - 2) * (side - 2))
-        let mean = sum / n
-        return sumOfSquares / n - mean * mean
+        return values
     }
 
 }
