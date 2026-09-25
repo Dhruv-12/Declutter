@@ -1,3 +1,4 @@
+import CoreText
 import SwiftUI
 import UIKit
 
@@ -253,9 +254,16 @@ private struct TapAnimation<Value: Equatable>: ViewModifier {
 // MARK: - Haptics
 
 enum Haptics {
+    private static let lightGenerator = UIImpactFeedbackGenerator(style: .light)
+
+    /// Wakes the Taptic Engine so the intro's tap fires without delay.
+    static func prepareLight() {
+        lightGenerator.prepare()
+    }
+
     /// A soft tap, used when the intro's letters settle.
     static func light() {
-        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        lightGenerator.impactOccurred()
     }
 
     /// Selecting or deselecting an item.
@@ -275,6 +283,22 @@ enum Haptics {
 
     static func warning() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+    }
+}
+
+// MARK: - Warm-up
+
+nonisolated enum FontWarmer {
+    /// Loads SF Pro Rounded and lays out the intro word once, in the background, so the
+    /// intro's first frame doesn't pay for loading the font.
+    static func warm() {
+        let base = UIFont.systemFont(ofSize: 58, weight: .bold)
+        let rounded = base.fontDescriptor.withDesign(.rounded).map { UIFont(descriptor: $0, size: 58) } ?? base
+        for font in [rounded, UIFont.preferredFont(forTextStyle: .body)] {
+            let text = NSAttributedString(string: "Declutter 0123456789 GB", attributes: [.font: font])
+            let line = CTLineCreateWithAttributedString(text)
+            _ = CTLineGetTypographicBounds(line, nil, nil, nil)
+        }
     }
 }
 

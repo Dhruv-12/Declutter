@@ -6,9 +6,14 @@ import SwiftUI
 /// App-wide state: permissions, device storage and the media the dashboard summarises.
 @Observable
 final class AppModel {
-    private(set) var photoStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-    private(set) var contactsStatus = CNContactStore.authorizationStatus(for: .contacts)
-    private(set) var storage = DeviceStorage.current()
+    // Nothing here touches the system while the model is created: permission checks and the
+    // storage calculation can be slow, so `start()` reads them in the background after the
+    // intro is on screen.
+    private(set) var photoStatus: PHAuthorizationStatus = .notDetermined
+    private(set) var contactsStatus: CNAuthorizationStatus = .notDetermined
+    private(set) var storage: DeviceStorage?
+    /// False until `start()` has read the real permission states.
+    private(set) var hasStarted = false
 
     private(set) var screenshots: [MediaItem] = []
     private(set) var videos: [MediaItem] = []
@@ -34,27 +39,42 @@ final class AppModel {
 
     // MARK: - Lifecycle
 
+    /// Runs once at launch, behind the intro. Every slow call happens off the main thread.
     func start() async {
-        refreshPermissions()
+        guard !hasStarted else { return }
+        let statuses = await PermissionReader.current()
+        photoStatus = statuses.photos
+        contactsStatus = statuses.contacts
+        hasStarted = true
+        LaunchTimer.mark("Permissions read")
+
+        refreshStorage()
         if contactsStatus.canRead { Task { await contacts.scan() } }
         await reloadLibrary()
     }
 
+    /// Asks iOS for used and free space in the background; it can take a while.
     func refreshStorage() {
-        storage = DeviceStorage.current()
+        Task {
+            let isFirstLoad = storage == nil
+            storage = await DeviceStorage.load()
+            if isFirstLoad { LaunchTimer.mark("Storage loaded") }
+        }
     }
 
+    /// Re-reads permissions in the background, for example after a visit to the Settings app.
     func refreshPermissions() {
-        let newPhotoStatus = PHPhotoLibrary.authorizationStatus(for: .readWrite)
-        if newPhotoStatus != photoStatus {
-            photoStatus = newPhotoStatus
-            Task { await photoAccessChanged() }
-        }
-
-        let newContactsStatus = CNContactStore.authorizationStatus(for: .contacts)
-        if newContactsStatus != contactsStatus {
-            contactsStatus = newContactsStatus
-            contactsAccessChanged()
+        guard hasStarted else { return }
+        Task {
+            let statuses = await PermissionReader.current()
+            if statuses.photos != photoStatus {
+                photoStatus = statuses.photos
+                await photoAccessChanged()
+            }
+            if statuses.contacts != contactsStatus {
+                contactsStatus = statuses.contacts
+                contactsAccessChanged()
+            }
         }
     }
 
@@ -98,7 +118,8 @@ final class AppModel {
             return
         }
         if libraryObserver == nil {
-            libraryObserver = PhotoLibraryObserver { [weak self] in self?.scheduleReload() }
+            // The first call to the shared photo library is slow, so register off the main thread.
+            libraryObserver = await PhotoLibraryObserver.make { [weak self] in self?.scheduleReload() }
         }
         isLoadingLibrary = true
         let media = await PhotoLibrary.loadDashboardMedia()

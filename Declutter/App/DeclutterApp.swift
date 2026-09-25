@@ -6,7 +6,8 @@ struct DeclutterApp: App {
 
     init() {
         LaunchTimer.mark("App init started")
-        BrandAppearance.apply()
+        // Kept tiny on purpose: nothing here may delay the first frame.
+        Task.detached(priority: .userInitiated) { FontWarmer.warm() }
     }
 
     var body: some Scene {
@@ -25,27 +26,39 @@ struct RootView: View {
     @AppStorage("hasFinishedOnboarding") private var hasFinishedOnboarding = false
     /// Only true when the app process starts, so returning from the background skips the intro.
     @State private var showIntro = true
+    /// The app's screens are added right after the intro's first frame, so that frame has
+    /// nothing else to build.
+    @State private var showContent = false
 
     var body: some View {
         ZStack {
-            Group {
-                if hasFinishedOnboarding {
-                    DashboardView()
-                } else {
-                    OnboardingView { hasFinishedOnboarding = true }
+            if showContent {
+                Group {
+                    if hasFinishedOnboarding {
+                        DashboardView()
+                    } else {
+                        OnboardingView { hasFinishedOnboarding = true }
+                    }
                 }
+                // Loads permissions, storage and scans in the background while the intro plays.
+                .task { await model.start() }
             }
             if showIntro {
-                IntroView { showIntro = false }
-                    .zIndex(1)
+                IntroView(
+                    onFirstFrame: {
+                        BrandAppearance.apply()
+                        showContent = true
+                    },
+                    onFinished: { showIntro = false }
+                )
+                .zIndex(1)
             }
         }
         .statusBarHidden(showIntro)
-        // Starts straight away, behind the intro, so nobody waits for it.
-        .task { await model.start() }
         .onChange(of: scenePhase) { _, phase in
             // The user may have changed access in the Settings app while we were in the background.
-            if phase == .active {
+            // At launch `start()` does this, so skip it until then.
+            if phase == .active && model.hasStarted {
                 model.refreshPermissions()
                 model.refreshStorage()
             }

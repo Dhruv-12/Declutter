@@ -3,6 +3,14 @@ import Photos
 import PhotosUI
 import UIKit
 
+/// Reads both permission states off the main thread.
+nonisolated enum PermissionReader {
+    @concurrent
+    static func current() async -> (photos: PHAuthorizationStatus, contacts: CNAuthorizationStatus) {
+        (PHPhotoLibrary.authorizationStatus(for: .readWrite), CNContactStore.authorizationStatus(for: .contacts))
+    }
+}
+
 extension PHAuthorizationStatus {
     /// Full or limited access both let us read (the limited set of) photos.
     var canRead: Bool { self == .authorized || self == .limited }

@@ -91,6 +91,12 @@ nonisolated final class SizeCache: @unchecked Sendable {
 nonisolated final class PhotoLibraryObserver: NSObject, PHPhotoLibraryChangeObserver, @unchecked Sendable {
     private let onChange: @MainActor @Sendable () -> Void
 
+    /// Creates and registers the observer off the main thread.
+    @concurrent
+    static func make(onChange: @escaping @MainActor @Sendable () -> Void) async -> PhotoLibraryObserver {
+        PhotoLibraryObserver(onChange: onChange)
+    }
+
     init(onChange: @escaping @MainActor @Sendable () -> Void) {
         self.onChange = onChange
         super.init()

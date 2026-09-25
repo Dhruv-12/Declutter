@@ -8,6 +8,12 @@ nonisolated struct DeviceStorage: Equatable, Sendable {
     var used: Int64 { max(total - available, 0) }
     var usedFraction: Double { total > 0 ? Double(used) / Double(total) : 0 }
 
+    /// The same as `current()`, off the main thread. iOS works out purgeable space for this, which can be slow.
+    @concurrent
+    static func load() async -> DeviceStorage? {
+        current()
+    }
+
     static func current() -> DeviceStorage? {
         let url = URL(fileURLWithPath: NSHomeDirectory())
         guard let values = try? url.resourceValues(forKeys: [

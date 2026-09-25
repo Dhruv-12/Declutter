@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// The ~1.5 second intro on a cold launch: scattered letters spring into the word "Declutter",
-/// a Mint bar slides in underneath, then everything fades into the app.
+/// The intro on a cold launch (about 1.2 seconds from its first frame): scattered letters spring
+/// into the word "Declutter", a Mint bar slides in underneath, then everything fades into the app.
 ///
-/// It sits on top of the app, so storage and scans load behind it and nobody waits for it.
+/// It starts on the very first screen refresh and never waits for data: the app loads behind it.
 /// Tapping skips it. With Reduce Motion on, the word simply fades in and out.
 struct IntroView: View {
+    /// Called once the intro's first frame is on screen, so the app can start building behind it.
+    var onFirstFrame: () -> Void = {}
     let onFinished: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -37,8 +39,8 @@ struct IntroView: View {
                             .opacity(settled ? 1 : (reduceMotion ? 0 : 0.35))
                             .animation(
                                 reduceMotion
-                                    ? .easeOut(duration: 0.4)
-                                    : .spring(response: 0.55, dampingFraction: 0.72).delay(Double(index) * 0.035),
+                                    ? .easeOut(duration: 0.3)
+                                    : .spring(response: 0.45, dampingFraction: 0.72).delay(Double(index) * 0.025),
                                 value: settled
                             )
                     }
@@ -63,34 +65,40 @@ struct IntroView: View {
         .accessibilityAddTraits(.isHeader)
         .onAppear {
             LaunchTimer.mark("Intro view appeared")
-            firstFrame.wait { LaunchTimer.mark("First intro frame on screen") }
+            Haptics.prepareLight()
+            // Start on the first screen refresh: the scattered frame is on screen, nothing waits.
+            firstFrame.wait {
+                LaunchTimer.mark("First intro frame on screen")
+                onFirstFrame()
+                play()
+            }
         }
-        .task { await play() }
     }
 
-    private func play() async {
-        if reduceMotion {
-            settled = true
-            withAnimation(.easeOut(duration: 0.4)) { barShown = true }
-            try? await Task.sleep(for: .milliseconds(900))
-        } else {
-            try? await Task.sleep(for: .milliseconds(50))
-            LaunchTimer.mark("Intro animation started")
-            settled = true
-            try? await Task.sleep(for: .milliseconds(750))
-            Haptics.light()
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { barShown = true }
-            try? await Task.sleep(for: .milliseconds(350))
+    /// Letters settle (~0.6 s), the bar slides in (~0.25 s), then a 0.3 s fade: about 1.15 s in all.
+    private func play() {
+        LaunchTimer.mark("Intro animation started")
+        settled = true
+        Task {
+            if reduceMotion {
+                withAnimation(.easeOut(duration: 0.3)) { barShown = true }
+                try? await Task.sleep(for: .milliseconds(500))
+            } else {
+                try? await Task.sleep(for: .milliseconds(600))
+                Haptics.light()
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) { barShown = true }
+                try? await Task.sleep(for: .milliseconds(250))
+            }
+            finish()
         }
-        finish()
     }
 
     private func finish() {
         guard !finished else { return }
         finished = true
-        withAnimation(.easeInOut(duration: 0.35)) { fadingOut = true }
+        withAnimation(.easeInOut(duration: 0.3)) { fadingOut = true }
         Task {
-            try? await Task.sleep(for: .milliseconds(350))
+            try? await Task.sleep(for: .milliseconds(300))
             LaunchTimer.mark("Intro finished")
             onFinished()
         }
