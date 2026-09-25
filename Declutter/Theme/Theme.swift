@@ -36,6 +36,13 @@ nonisolated enum Theme {
     static let mistUI = UIColor(light: 0xF3F6F5, dark: 0x0D1614)
     static let pineUI = UIColor(light: 0x12332E, dark: 0xE2ECE8)
 
+    /// Exact brand colours that never change with dark mode, for the launch screen and intro.
+    enum Brand {
+        static let pine = Color(uiColor: UIColor(hex: 0x12332E))
+        static let mist = Color(uiColor: UIColor(hex: 0xF3F6F5))
+        static let mint = Color(uiColor: UIColor(hex: 0x3CCB94))
+    }
+
     // MARK: Layout
 
     /// Side margin of every screen.
@@ -193,6 +200,11 @@ private struct TapAnimation<Value: Equatable>: ViewModifier {
 // MARK: - Haptics
 
 enum Haptics {
+    /// A soft tap, used when the intro's letters settle.
+    static func light() {
+        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+    }
+
     /// Selecting or deselecting an item.
     static func select() {
         UISelectionFeedbackGenerator().selectionChanged()
