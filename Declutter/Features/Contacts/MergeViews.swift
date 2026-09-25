@@ -6,6 +6,15 @@ struct MergeEditorView: View {
 
     var body: some View {
         List {
+            Group {
+                editorSections
+            }
+            .listRowBackground(Theme.stone)
+        }
+        .brandList()
+    }
+
+    @ViewBuilder private var editorSections: some View {
             Section("Merged contact") {
                 MergePreviewCard(draft: draft)
             }
@@ -40,7 +49,7 @@ struct MergeEditorView: View {
                     if !draft.isValid {
                         Text("Enter a name.")
                             .font(.caption)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.coralText)
                     }
                 }
             }
@@ -80,7 +89,7 @@ struct MergeEditorView: View {
                         let isKept = contact.id == draft.primary.id
                         Text(isKept ? "Kept" : "Deleted")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(isKept ? .green : .red)
+                            .foregroundStyle(isKept ? Theme.pine : Theme.coralText)
                     }
                 }
             } header: {
@@ -88,7 +97,6 @@ struct MergeEditorView: View {
             } footer: {
                 Text("Addresses, birthdays, dates, relations and social profiles from every contact are combined too.")
             }
-        }
     }
 }
 
@@ -101,23 +109,25 @@ struct MergePreviewCard: View {
             HStack(spacing: 14) {
                 MergedAvatar(imageData: draft.photoContact?.thumbnail, name: draft.finalName, size: 56)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(draft.finalName.isEmpty ? "No Name" : draft.finalName)
-                        .font(.title3.bold())
-                    Text("\(draft.group.contacts.count) contacts → 1")
+                    Text(draft.finalName.isEmpty ? "No name" : draft.finalName)
+                        .font(.heading(.title3))
+                        .foregroundStyle(Theme.pine)
+                    Text("\(draft.group.contacts.count) contacts become 1")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
-            ForEach(draft.includedPhones) { Label($0.display, systemImage: "phone").font(.subheadline) }
-            ForEach(draft.includedEmails) { Label($0.display, systemImage: "envelope").font(.subheadline) }
+            ForEach(draft.includedPhones) { Label($0.display, systemImage: "phone") }
+            ForEach(draft.includedEmails) { Label($0.display, systemImage: "envelope") }
             if draft.includedPhones.isEmpty && draft.includedEmails.isEmpty {
                 Text("No phone numbers or emails")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
+        .font(.subheadline)
+        .foregroundStyle(Theme.pine)
         .padding(.vertical, 4)
-        .animation(.default, value: draft)
+        .tapAnimation(value: draft)
     }
 }
 
@@ -130,8 +140,8 @@ struct MergeWarning: View {
         } icon: {
             Image(systemName: "exclamationmark.triangle.fill")
         }
-        .font(.footnote)
-        .foregroundStyle(.red)
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(Theme.coralText)
     }
 }
 
@@ -141,12 +151,15 @@ private struct ChoiceRow: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        Button {
+            Haptics.select()
+            action()
+        } label: {
             HStack {
-                Text(title).foregroundStyle(.primary)
+                Text(title).foregroundStyle(Theme.pine)
                 Spacer()
                 if isChosen {
-                    Image(systemName: "checkmark").foregroundStyle(.tint).bold()
+                    Image(systemName: "checkmark").foregroundStyle(Theme.pine).bold()
                 }
             }
             .contentShape(.rect)
@@ -163,14 +176,16 @@ private struct ValueToggle: View {
         Toggle(isOn: $value.isIncluded) {
             VStack(alignment: .leading, spacing: 2) {
                 Label(value.display, systemImage: systemImage)
+                    .foregroundStyle(Theme.pine)
                 if value.duplicatesRemoved > 0 {
                     Text("\(value.duplicatesRemoved) duplicate\(value.duplicatesRemoved == 1 ? "" : "s") removed")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .padding(.leading, 30)
                 }
             }
         }
+        .onChange(of: value.isIncluded) { Haptics.select() }
     }
 }
 
@@ -180,7 +195,7 @@ private struct PhotoChooser: View {
     var body: some View {
         if draft.photoOptions.isEmpty {
             Text("None of these contacts has a photo.")
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         } else {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 16) {
@@ -194,9 +209,9 @@ private struct PhotoChooser: View {
                     option(isChosen: draft.photoFrom == nil, label: "No photo") {
                         Image(systemName: "person.crop.circle.badge.xmark")
                             .font(.system(size: 28))
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                             .frame(width: 56, height: 56)
-                            .background(Color(.tertiarySystemFill), in: .circle)
+                            .background(Theme.mist, in: .circle)
                     } action: {
                         draft.photoFrom = nil
                     }
@@ -212,17 +227,20 @@ private struct PhotoChooser: View {
         @ViewBuilder image: () -> some View,
         action: @escaping () -> Void
     ) -> some View {
-        Button(action: action) {
+        Button {
+            Haptics.select()
+            action()
+        } label: {
             VStack(spacing: 6) {
                 image()
                     .overlay {
-                        Circle().strokeBorder(isChosen ? Color.accentColor : .clear, lineWidth: 3)
+                        Circle().strokeBorder(isChosen ? Theme.pine : .clear, lineWidth: 3)
                     }
                 Text(label)
                     .font(.caption2)
                     .lineLimit(1)
                     .frame(width: 70)
-                    .foregroundStyle(isChosen ? .primary : .secondary)
+                    .foregroundStyle(isChosen ? Theme.pine : Theme.secondaryText)
             }
         }
         .buttonStyle(.plain)
@@ -243,10 +261,10 @@ struct MergedAvatar: View {
             } else {
                 let initials = String(name.split(separator: " ").prefix(2).compactMap(\.first)).uppercased()
                 Text(initials.isEmpty ? "?" : initials)
-                    .font(.system(size: size * 0.4, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Theme.pine)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.gray.gradient)
+                    .background(Theme.mist)
             }
         }
         .frame(width: size, height: size)
@@ -274,33 +292,41 @@ struct MergeSheet: View {
     var body: some View {
         NavigationStack {
             MergeEditorView(draft: $draft)
-                .navigationTitle("Merge Contacts")
+                .navigationTitle("Merge contacts")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
                             .disabled(isWorking)
                     }
-                    ToolbarItem(placement: .confirmationAction) {
+                }
+                .safeAreaInset(edge: .bottom) {
+                    Button {
+                        Haptics.warning()
+                        confirming = true
+                    } label: {
                         if isWorking {
-                            ProgressView()
+                            ProgressView().tint(Theme.onCoral)
                         } else {
-                            Button("Merge") { confirming = true }
-                                .bold()
-                                .disabled(!draft.isValid)
+                            Text("Merge contacts")
                         }
                     }
+                    .buttonStyle(.destructive)
+                    .disabled(!draft.isValid || isWorking)
+                    .padding(.horizontal, Theme.page)
+                    .padding(.vertical, 12)
+                    .background(Theme.mist.ignoresSafeArea())
                 }
                 .confirmationDialog(
                     "Merge \(draft.group.contacts.count) contacts into one?",
                     isPresented: $confirming,
                     titleVisibility: .visible
                 ) {
-                    Button("Merge", role: .destructive) { merge() }
+                    Button("Merge contacts", role: .destructive) { merge() }
                 } message: {
                     Text("This can't be undone.")
                 }
-                .alert("Couldn't Merge", isPresented: Binding(
+                .alert("Couldn't merge", isPresented: Binding(
                     get: { errorMessage != nil },
                     set: { if !$0 { errorMessage = nil } }
                 )) {
@@ -313,10 +339,12 @@ struct MergeSheet: View {
     }
 
     private func merge() {
+        Haptics.confirm()
         isWorking = true
         Task {
             do {
                 try await perform(draft)
+                Haptics.success()
                 dismiss()
             } catch {
                 errorMessage = error.localizedDescription
@@ -353,13 +381,15 @@ struct MergeAllSheet: View {
                     MergeWarning(deletedCount: contactsDeleted)
                     Text("Tap a group to change its name, numbers, emails or photo. Untick a group to skip it.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
+                .listRowBackground(Theme.stone)
 
                 Section {
                     ForEach($drafts) { $draft in
                         HStack(spacing: 12) {
                             Button {
+                                Haptics.select()
                                 draft.isIncluded.toggle()
                             } label: {
                                 SelectionCheckmark(isSelected: draft.isIncluded)
@@ -372,15 +402,18 @@ struct MergeAllSheet: View {
                             }
                         }
                         .opacity(draft.isIncluded ? 1 : 0.5)
+                        .listRowBackground(Theme.stone)
                     }
                 } header: {
                     HStack {
                         Text("\(included.count) of \(drafts.count) groups")
                         Spacer()
                         let allIncluded = included.count == drafts.count
-                        Button(allIncluded ? "Skip All" : "Include All") {
+                        Button(allIncluded ? "Skip all" : "Include all") {
+                            Haptics.select()
                             for index in drafts.indices { drafts[index].isIncluded = !allIncluded }
                         }
+                        .foregroundStyle(Theme.pine)
                         .font(.caption.weight(.semibold))
                         .textCase(nil)
                     }
@@ -389,11 +422,12 @@ struct MergeAllSheet: View {
             .navigationDestination(for: String.self) { id in
                 if let index = drafts.firstIndex(where: { $0.id == id }) {
                     MergeEditorView(draft: $drafts[index])
-                        .navigationTitle("Edit Merge")
+                        .navigationTitle("Edit merge")
                         .navigationBarTitleDisplayMode(.inline)
                 }
             }
-            .navigationTitle("Merge All")
+            .brandList()
+            .navigationTitle("Merge all groups")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -407,11 +441,11 @@ struct MergeAllSheet: View {
                 isPresented: $confirming,
                 titleVisibility: .visible
             ) {
-                Button("Merge \(included.count) Group\(included.count == 1 ? "" : "s")", role: .destructive) { mergeAll() }
+                Button("Merge \(included.count) group\(included.count == 1 ? "" : "s")", role: .destructive) { mergeAll() }
             } message: {
                 Text("\(contactsDeleted) contact\(contactsDeleted == 1 ? "" : "s") will be permanently deleted after their details are copied. This can't be undone.")
             }
-            .alert("Some Groups Weren't Merged", isPresented: $showingFailures) {
+            .alert("Some groups weren't merged", isPresented: $showingFailures) {
                 Button("OK") { dismiss() }
             } message: {
                 Text(failures.joined(separator: "\n"))
@@ -424,37 +458,43 @@ struct MergeAllSheet: View {
         VStack(spacing: 8) {
             if let mergedSoFar {
                 ProgressView(value: Double(mergedSoFar), total: Double(max(included.count, 1)))
+                    .tint(Theme.pine)
                 Text("Merging \(min(mergedSoFar + 1, included.count)) of \(included.count)…")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             } else if hasInvalid {
                 Text("Give every ticked group a name before merging.")
                     .font(.caption)
-                    .foregroundStyle(.red)
+                    .foregroundStyle(Theme.coralText)
             }
             Button {
+                Haptics.warning()
                 confirming = true
             } label: {
-                Text(included.isEmpty ? "No Groups Selected" : "Merge \(included.count) Group\(included.count == 1 ? "" : "s")")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
+                Text(included.isEmpty ? "Tick a group to merge" : "Merge \(included.count) group\(included.count == 1 ? "" : "s")")
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
+            .buttonStyle(.destructive)
             .disabled(included.isEmpty || hasInvalid || isWorking)
         }
-        .padding()
-        .background(.bar)
+        .padding(.horizontal, Theme.page)
+        .padding(.vertical, 12)
+        .background(Theme.mist.ignoresSafeArea())
     }
 
     private func mergeAll() {
+        Haptics.confirm()
         let toMerge = included
         mergedSoFar = 0
         Task {
             failures = await model.contacts.mergeAll(toMerge) { mergedSoFar = $0 }
             mergedSoFar = nil
-            if failures.isEmpty { dismiss() } else { showingFailures = true }
+            if failures.isEmpty {
+                Haptics.success()
+                dismiss()
+            } else {
+                Haptics.warning()
+                showingFailures = true
+            }
         }
     }
 }
@@ -466,11 +506,12 @@ private struct MergeDraftRow: View {
         HStack(spacing: 12) {
             MergedAvatar(imageData: draft.photoContact?.thumbnail, name: draft.finalName)
             VStack(alignment: .leading, spacing: 2) {
-                Text(draft.finalName.isEmpty ? "No Name" : draft.finalName)
-                    .font(.body.weight(.medium))
+                Text(draft.finalName.isEmpty ? "No name" : draft.finalName)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.pine)
                 Text(summary)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
     }

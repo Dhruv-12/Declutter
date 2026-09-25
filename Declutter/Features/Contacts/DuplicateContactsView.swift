@@ -11,16 +11,14 @@ struct DuplicateContactsView: View {
 
     var body: some View {
         content
-            .navigationTitle("Duplicate Contacts")
+            .navigationTitle("Duplicate contacts")
             .safeAreaInset(edge: .bottom) {
-                if !contacts.selection.isEmpty {
-                    ContactSelectionBar(count: contacts.selection.count) {
+                if model.contactsStatus.canRead && !contacts.groups.isEmpty {
+                    SelectionBar(count: contacts.selection.count, singular: "contact", plural: "contacts") {
                         reviewPlan = model.makePlan(for: [.duplicateContacts])
                     }
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
-            .animation(.snappy, value: contacts.selection.isEmpty)
             .refreshable { await contacts.scan() }
             .sheet(item: $merging) { group in
                 MergeSheet(group: group) { draft in
@@ -35,42 +33,47 @@ struct DuplicateContactsView: View {
 
     @ViewBuilder private var content: some View {
         if !model.contactsStatus.canRead {
-            ContentUnavailableView {
-                Label("Contacts Access Needed", systemImage: "person.crop.circle.badge.exclamationmark")
-            } description: {
-                Text("Allow Contacts access so Declutter can look for duplicates on this iPhone.")
-            } actions: {
-                if model.contactsStatus == .notDetermined {
-                    Button("Allow Contacts") { Task { await model.requestContactsAccess() } }
-                        .buttonStyle(.borderedProminent)
-                } else {
-                    Button("Open Settings") { SystemSettings.open() }
-                        .buttonStyle(.borderedProminent)
+            if model.contactsStatus == .notDetermined {
+                EmptyStateView(
+                    systemImage: "person.crop.circle.badge.questionmark",
+                    title: "Allow contacts access",
+                    message: "Declutter looks for duplicate contacts on this iPhone. Your contacts never leave it.",
+                    actionTitle: "Allow contacts access"
+                ) {
+                    Task { await model.requestContactsAccess() }
+                }
+            } else {
+                EmptyStateView(
+                    systemImage: "person.crop.circle.badge.exclamationmark",
+                    title: "Contacts access is off",
+                    message: "Turn on Contacts access in Settings so Declutter can look for duplicates.",
+                    actionTitle: "Open Settings"
+                ) {
+                    SystemSettings.open()
                 }
             }
         } else {
             switch contacts.state {
             case .idle:
-                ProgressView("Checking contacts…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingView(text: "Checking contacts…")
                     .task { await contacts.scan() }
             case .scanning where contacts.groups.isEmpty:
-                ProgressView("Checking contacts…")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                LoadingView(text: "Checking contacts…")
             case .failed(let message):
-                ContentUnavailableView {
-                    Label("Couldn't Read Contacts", systemImage: "exclamationmark.triangle")
-                } description: {
-                    Text(message)
-                } actions: {
-                    Button("Try Again") { Task { await contacts.scan() } }
+                EmptyStateView(
+                    systemImage: "exclamationmark.triangle",
+                    title: "Couldn't read contacts",
+                    message: message,
+                    actionTitle: "Try again"
+                ) {
+                    Task { await contacts.scan() }
                 }
             default:
                 if contacts.groups.isEmpty {
-                    ContentUnavailableView(
-                        "No Duplicates",
-                        systemImage: "person.2.badge.gearshape",
-                        description: Text("Checked \(contacts.totalContacts) contacts. Everything looks tidy.")
+                    EmptyStateView(
+                        systemImage: "person.2",
+                        title: "No duplicate contacts",
+                        message: "Your address book is tidy. Checked \(contacts.totalContacts) contacts."
                     )
                 } else {
                     groupList
@@ -81,24 +84,23 @@ struct DuplicateContactsView: View {
 
     private var groupList: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(contacts.groups.count) groups · \(contacts.duplicateCount) duplicates")
-                    .font(.subheadline.weight(.medium))
-                Text("Checked \(contacts.totalContacts) contacts. Merge to combine details into one contact, or select contacts to delete.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 6) {
+                ScreenSummary(
+                    text: "\(contacts.groups.count) groups · \(contacts.duplicateCount) duplicates",
+                    detail: "Checked \(contacts.totalContacts) contacts. Merge to combine each group into one contact, or select contacts to delete."
+                )
                 if model.contactsStatus.isLimited {
                     Label("Only the contacts you shared are checked.", systemImage: "info.circle")
                         .font(.caption)
-                        .foregroundStyle(.orange)
+                        .foregroundStyle(Theme.secondaryText)
+                        .padding(.horizontal, Theme.page)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal)
+            .padding(.top, Theme.gap)
 
             BulkActionBar {
                 BulkActionButton(
-                    title: "Merge all",
+                    title: "Review and merge all",
                     count: contacts.groups.count,
                     detail: "\(contacts.duplicateCount) duplicate\(contacts.duplicateCount == 1 ? "" : "s")",
                     systemImage: "arrow.triangle.merge"
@@ -107,21 +109,25 @@ struct DuplicateContactsView: View {
                     mergingAll = true
                 }
             }
-            .padding(.top, 8)
+            .padding(.vertical, Theme.gap)
 
-            LazyVStack(spacing: 16) {
+            LazyVStack(spacing: Theme.spacing) {
                 ForEach(contacts.groups) { group in
                     ContactGroupCard(
                         group: group,
                         selection: contacts.selection,
-                        onToggle: { contacts.toggle($0) },
+                        onToggle: {
+                            Haptics.select()
+                            contacts.toggle($0)
+                        },
                         onMerge: { merging = group }
                     )
                 }
             }
-            .padding()
+            .padding(.horizontal, Theme.page)
+            .padding(.bottom, Theme.spacing)
         }
-        .background(Color(.systemGroupedBackground))
+        .screenBackground()
     }
 }
 
@@ -137,10 +143,10 @@ private struct ContactGroupCard: View {
                 ForEach(group.reasons, id: \.self) { reason in
                     Text(reason.rawValue)
                         .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 8)
+                        .foregroundStyle(Theme.pine)
+                        .padding(.horizontal, 10)
                         .padding(.vertical, 4)
-                        .background(CleanupCategory.duplicateContacts.tint.opacity(0.15), in: .capsule)
-                        .foregroundStyle(CleanupCategory.duplicateContacts.tint)
+                        .background(Theme.mist, in: .capsule)
                 }
             }
 
@@ -148,18 +154,17 @@ private struct ContactGroupCard: View {
                 ContactRow(contact: contact, isSelected: selection.contains(contact.id))
                     .contentShape(.rect)
                     .onTapGesture { onToggle(contact.id) }
-                if contact.id != group.contacts.last?.id { Divider() }
+                if contact.id != group.contacts.last?.id {
+                    Theme.hairline.frame(height: 1)
+                }
             }
 
             Button(action: onMerge) {
-                Label("Merge \(group.contacts.count) Contacts", systemImage: "arrow.triangle.merge")
-                    .frame(maxWidth: .infinity)
+                Label("Merge contacts", systemImage: "arrow.triangle.merge")
             }
-            .buttonStyle(.bordered)
-            .tint(CleanupCategory.duplicateContacts.tint)
+            .buttonStyle(BrandButtonStyle(kind: .onCard))
         }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground), in: .rect(cornerRadius: 16))
+        .card()
     }
 }
 
@@ -172,12 +177,13 @@ struct ContactRow: View {
             ContactAvatar(contact: contact)
             VStack(alignment: .leading, spacing: 2) {
                 Text(contact.displayName)
-                    .font(.body.weight(.medium))
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(Theme.pine)
                 let details = contact.phones + contact.emails
                 if !details.isEmpty {
                     Text(details.joined(separator: " · "))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                         .lineLimit(2)
                 }
             }
@@ -196,38 +202,6 @@ struct ContactAvatar: View {
     var size: CGFloat = 40
 
     var body: some View {
-        Group {
-            if let data = contact.thumbnail, let image = UIImage(data: data) {
-                Image(uiImage: image).resizable().scaledToFill()
-            } else {
-                Text(contact.initials)
-                    .font(.system(size: size * 0.4, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.gray.gradient)
-            }
-        }
-        .frame(width: size, height: size)
-        .clipShape(.circle)
-    }
-}
-
-private struct ContactSelectionBar: View {
-    let count: Int
-    let onReview: () -> Void
-
-    var body: some View {
-        HStack {
-            Text("\(count) selected")
-                .font(.headline)
-                .contentTransition(.numericText())
-            Spacer()
-            Button("Review", action: onReview)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(.bar)
+        MergedAvatar(imageData: contact.thumbnail, name: contact.displayName, size: size)
     }
 }
