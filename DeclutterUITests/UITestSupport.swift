@@ -52,14 +52,16 @@ extension XCUIApplication {
     func category(_ name: String) -> XCUIElement { anyElement("category.\(name)") }
 
     /// Scrolls the home screen until a tool tile is clear of the sticky bottom bar, then taps it.
+    /// Tiles live in a lazy grid, so ones further down only exist once scrolled into view.
     func openTool(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
         let tile = anyElement("tool.\(name)")
-        XCTAssertTrue(tile.waitForExistence(timeout: 20), "Tile for \(name) missing", file: file, line: line)
+        XCTAssertTrue(category("screenshots").waitForExistence(timeout: 20), "Home screen didn't load", file: file, line: line)
         var swipes = 0
-        while swipes < 6 && (!tile.isHittable || tile.frame.maxY > reviewBar.frame.minY - 8) {
+        while swipes < 8 && !(tile.exists && tile.isHittable && tile.frame.maxY < reviewBar.frame.minY - 8) {
             swipeUp()
             swipes += 1
         }
+        XCTAssertTrue(tile.waitForExistence(timeout: 5), "Tile for \(name) missing", file: file, line: line)
         tile.tap()
     }
 
