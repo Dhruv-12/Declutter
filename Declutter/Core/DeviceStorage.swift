@@ -27,8 +27,29 @@ nonisolated struct DeviceStorage: Equatable, Sendable {
     }
 }
 
+/// How the home storage bar splits used space. Pure logic, unit tested.
+nonisolated struct StorageBreakdown: Equatable {
+    /// Space freed this session (still counted as used by iOS until Recently Deleted empties).
+    let freed: Int64
+    /// Space the app could free, never more than what is used.
+    let cleanable: Int64
+    /// Everything else that is used.
+    let otherUsed: Int64
+
+    init(storage: DeviceStorage, cleanable: Int64, freed: Int64) {
+        self.freed = min(max(freed, 0), storage.used)
+        self.cleanable = min(max(cleanable, 0), storage.used - self.freed)
+        self.otherUsed = storage.used - self.cleanable - self.freed
+    }
+}
+
 nonisolated enum ByteFormat {
     static func string(_ bytes: Int64) -> String {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
+}
+
+/// "1 photo", "3 photos". Every count shown to people goes through this.
+nonisolated func counted(_ count: Int, _ singular: String, _ plural: String? = nil) -> String {
+    "\(count) \(count == 1 ? singular : (plural ?? singular + "s"))"
 }

@@ -313,6 +313,7 @@ struct MergeSheet: View {
                     }
                     .buttonStyle(.destructive)
                     .disabled(!draft.isValid || isWorking)
+                    .accessibilityIdentifier("merge.confirm")
                     .padding(.horizontal, Theme.page)
                     .padding(.vertical, 12)
                     .background(Theme.mist.ignoresSafeArea())
@@ -369,7 +370,7 @@ struct MergeAllSheet: View {
         _drafts = State(initialValue: groups.map(MergeDraft.init))
     }
 
-    private var included: [MergeDraft] { drafts.filter(\.isIncluded) }
+    private var included: [MergeDraft] { MergeDraft.approved(drafts) }
     private var contactsDeleted: Int { included.reduce(0) { $0 + $1.group.contacts.count - 1 } }
     private var hasInvalid: Bool { included.contains { !$0.isValid } }
     private var isWorking: Bool { mergedSoFar != nil }
@@ -396,6 +397,7 @@ struct MergeAllSheet: View {
                             }
                             .buttonStyle(.borderless)
                             .accessibilityLabel(draft.isIncluded ? "Skip this group" : "Include this group")
+                            .accessibilityIdentifier("mergeAll.toggle")
 
                             NavigationLink(value: draft.id) {
                                 MergeDraftRow(draft: draft)
@@ -406,7 +408,7 @@ struct MergeAllSheet: View {
                     }
                 } header: {
                     HStack {
-                        Text("\(included.count) of \(drafts.count) groups")
+                        Text("\(included.count) of \(counted(drafts.count, "group"))")
                         Spacer()
                         let allIncluded = included.count == drafts.count
                         Button(allIncluded ? "Skip all" : "Include all") {
@@ -475,6 +477,7 @@ struct MergeAllSheet: View {
             }
             .buttonStyle(.destructive)
             .disabled(included.isEmpty || hasInvalid || isWorking)
+            .accessibilityIdentifier("mergeAll.confirm")
         }
         .padding(.horizontal, Theme.page)
         .padding(.vertical, 12)

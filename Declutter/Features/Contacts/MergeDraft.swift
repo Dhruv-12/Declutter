@@ -114,6 +114,11 @@ nonisolated struct MergeDraft: Identifiable, Hashable, Sendable {
     /// A typed name can't be blank.
     var isValid: Bool { !useCustomName || !finalName.isEmpty }
 
+    /// The merges "Merge all" will run: only ticked groups. Unticked groups are skipped entirely.
+    static func approved(_ drafts: [MergeDraft]) -> [MergeDraft] {
+        drafts.filter(\.isIncluded)
+    }
+
     var plan: MergePlan {
         MergePlan(
             contactIDs: orderedContacts.map(\.id),

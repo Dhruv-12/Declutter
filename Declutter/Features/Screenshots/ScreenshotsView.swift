@@ -44,7 +44,7 @@ struct ScreenshotsView: View {
 
     private var grid: some View {
         ScrollView {
-            ScreenSummary(text: "\(items.count) screenshots · \(ByteFormat.string(items.totalSize))")
+            ScreenSummary(text: "\(counted(items.count, "screenshot")) · \(ByteFormat.string(items.totalSize))")
                 .padding(.top, Theme.gap)
 
             BulkActionBar {

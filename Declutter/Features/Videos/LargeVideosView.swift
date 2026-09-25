@@ -80,7 +80,7 @@ struct LargeVideosView: View {
     private var list: some View {
         ScrollView {
             ScreenSummary(
-                text: "\(items.count) videos · \(ByteFormat.string(items.totalSize))",
+                text: "\(counted(items.count, "video")) · \(ByteFormat.string(items.totalSize))",
                 detail: "Biggest first. Tap a thumbnail to play it."
             )
             .padding(.top, Theme.gap)
@@ -212,6 +212,7 @@ private struct VideoRow: View {
         .contentShape(.rect)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityIdentifier("videoRow")
     }
 
     private var details: String {

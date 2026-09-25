@@ -61,12 +61,13 @@ struct ReviewView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                         .disabled(isDeleting)
+                        .accessibilityIdentifier("review.cancel")
                 }
             }
             .safeAreaInset(edge: .bottom) { deleteBar }
             .interactiveDismissDisabled(isDeleting)
             .confirmationDialog(
-                "Permanently delete \(contacts.count) contacts?",
+                "Permanently delete \(counted(contacts.count, "contact"))?",
                 isPresented: $confirmingContacts,
                 titleVisibility: .visible
             ) {
@@ -189,6 +190,7 @@ struct ReviewView: View {
         }
         .buttonStyle(.destructive)
         .disabled(itemCount == 0 || isDeleting)
+        .accessibilityIdentifier("review.delete")
         .padding(.horizontal, Theme.page)
         .padding(.top, 12)
         .padding(.bottom, 8)

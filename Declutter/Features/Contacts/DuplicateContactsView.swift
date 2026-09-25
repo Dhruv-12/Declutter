@@ -74,7 +74,7 @@ struct DuplicateContactsView: View {
                     EmptyStateView(
                         systemImage: "person.2",
                         title: "No duplicate contacts",
-                        message: "Your address book is tidy. Checked \(contacts.totalContacts) contacts."
+                        message: "Your address book is tidy. Checked \(counted(contacts.totalContacts, "contact"))."
                     )
                 } else {
                     groupList
@@ -87,8 +87,8 @@ struct DuplicateContactsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 6) {
                 ScreenSummary(
-                    text: "\(contacts.groups.count) groups · \(contacts.duplicateCount) duplicates",
-                    detail: "Checked \(contacts.totalContacts) contacts. Merge to combine each group into one contact, or select contacts to delete."
+                    text: "\(counted(contacts.groups.count, "group")) · \(counted(contacts.duplicateCount, "duplicate"))",
+                    detail: "Checked \(counted(contacts.totalContacts, "contact")). Merge to combine each group into one contact, or select contacts to delete."
                 )
                 if model.contactsStatus.isLimited {
                     Label("Only the contacts you shared are checked.", systemImage: "info.circle")
@@ -163,6 +163,7 @@ private struct ContactGroupCard: View {
             Button(action: onMerge) {
                 Label("Merge contacts", systemImage: "arrow.triangle.merge")
             }
+            .accessibilityIdentifier("contactGroup.merge")
             .buttonStyle(BrandButtonStyle(kind: .onCard))
         }
         .card()
@@ -195,6 +196,7 @@ struct ContactRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(isSelected == true ? .isSelected : [])
+        .accessibilityIdentifier("contactRow")
     }
 }
 

@@ -78,11 +78,7 @@ nonisolated enum SimilarPhotoScanner {
         guard count > 1 else { return SimilarScanResult(groups: [], scannedCount: count) }
 
         // 1. Mark photos that have another photo taken shortly before or after them.
-        var inBurst = [Bool](repeating: false, count: count)
-        for index in 1..<count where isClose(assets[index - 1], assets[index]) {
-            inBurst[index - 1] = true
-            inBurst[index] = true
-        }
+        let inBurst = SimilarGrouping.burstFlags(assets.map(\.creationDate))
 
         // 2. Fingerprint every photo; Vision feature prints only where there is something to compare.
         var hashes = [UInt64](repeating: 0, count: count)
@@ -111,50 +107,22 @@ nonisolated enum SimilarPhotoScanner {
         }
         guard !cancel.isCancelled else { return SimilarScanResult(groups: [], scannedCount: 0) }
 
-        var groups = UnionFind(count: count)
-
-        // 3a. Similar shots: compare each photo with the few taken just before it.
-        for index in 0..<count {
-            guard let current = prints[index], let date = assets[index].creationDate else { continue }
-            var other = index - 1
-            while other >= 0, index - other <= neighboursToCompare,
-                  let otherDate = assets[other].creationDate,
-                  date.timeIntervalSince(otherDate) <= timeWindow {
-                if let previous = prints[other],
-                   distance(current, previous) <= strictness.threshold {
-                    groups.union(index, other)
-                }
-                other -= 1
-            }
+        // 3–4. Group them (see `SimilarGrouping`, which is unit tested).
+        let fingerprints = (0..<count).map { index in
+            PhotoFingerprint(
+                date: assets[index].creationDate,
+                hash: hashes[index],
+                shape: SimilarGrouping.shape(width: assets[index].pixelWidth, height: assets[index].pixelHeight),
+                print: prints[index]
+            )
         }
-
-        // 3b. Exact duplicates anywhere in the library: same fingerprint and same shape.
-        var buckets: [String: [Int]] = [:]
-        for index in 0..<count {
-            let hash = hashes[index]
-            // All-dark or all-flat images produce trivial fingerprints; skip them.
-            guard hash != 0, hash != .max else { continue }
-            let asset = assets[index]
-            let shape = "\(min(asset.pixelWidth, asset.pixelHeight))x\(max(asset.pixelWidth, asset.pixelHeight))"
-            buckets["\(hash)-\(shape)", default: []].append(index)
-        }
-        for bucket in buckets.values where bucket.count > 1 {
-            for index in bucket.dropFirst() where groups.find(index) != groups.find(bucket[0]) {
-                // Confirm with Vision so different images that happen to share a fingerprint aren't grouped.
-                let first = prints[bucket[0]] ?? thumbnail(for: assets[bucket[0]], side: 300).flatMap(featurePrint)
-                let other = prints[index] ?? thumbnail(for: assets[index], side: 300).flatMap(featurePrint)
-                if let first, let other, distance(first, other) <= duplicateThreshold {
-                    groups.union(index, bucket[0])
-                }
-            }
-        }
-
-        // 4. Collect groups of two or more.
-        var members: [Int: [Int]] = [:]
-        for index in 0..<count {
-            members[groups.find(index), default: []].append(index)
-        }
-        let groupIndices = members.values.filter { $0.count > 1 }.map { $0.sorted() }
+        let groupIndices = SimilarGrouping.group(
+            fingerprints,
+            threshold: strictness.threshold,
+            distance: distance,
+            // Confirm fingerprint matches with Vision, computing a print if the photo doesn't have one.
+            printFor: { thumbnail(for: assets[$0], side: 300).flatMap(featurePrint) }
+        )
         guard !groupIndices.isEmpty, !cancel.isCancelled else {
             Task { @MainActor in progress(1) }
             return SimilarScanResult(groups: [], scannedCount: count)
@@ -172,7 +140,8 @@ nonisolated enum SimilarPhotoScanner {
         let result = groupIndices.map { indices -> SimilarGroup in
             let entries = indices.compactMap { itemFor[$0] }
             let items = entries.map(\.0)
-            return SimilarGroup(id: items[0].id, items: items, bestID: pickBest(entries))
+            let best = BestPhotoPicker.bestIndex(entries.map(\.1))
+            return SimilarGroup(id: items[0].id, items: items, bestID: items[best].id)
         }
         .sorted { ($0.date ?? .distantPast) > ($1.date ?? .distantPast) }
 
@@ -191,11 +160,6 @@ nonisolated enum SimilarPhotoScanner {
         )
         options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
         return PhotoLibrary.array(PHAsset.fetchAssets(with: .image, options: options))
-    }
-
-    private static func isClose(_ first: PHAsset, _ second: PHAsset) -> Bool {
-        guard let a = first.creationDate, let b = second.creationDate else { return false }
-        return abs(b.timeIntervalSince(a)) <= timeWindow
     }
 
     /// Small image from the on-device cache. Never downloads from iCloud.
@@ -319,11 +283,104 @@ nonisolated enum SimilarPhotoScanner {
         return sumOfSquares / n - mean * mean
     }
 
-    /// Favourites always win. Otherwise sharpness matters most, then faces, then resolution.
-    private static func pickBest(_ entries: [(MediaItem, PhotoQuality)]) -> String {
-        let maxSharpness = max(entries.map(\.1.sharpness).max() ?? 1, 1)
-        let maxPixels = max(entries.map(\.1.pixels).max() ?? 1, 1)
-        let hasFaces = entries.contains { $0.1.faceQuality != nil }
+}
+
+// MARK: - Grouping and best photo (pure logic, unit tested)
+
+/// What grouping needs to know about one photo.
+nonisolated struct PhotoFingerprint<Print> {
+    var date: Date?
+    /// 64-bit difference hash; 0 means it couldn't be computed.
+    var hash: UInt64
+    /// Short side × long side, so a rotated copy still matches.
+    var shape: String
+    /// Vision feature print, only computed for photos taken close to another photo.
+    var print: Print?
+}
+
+nonisolated enum SimilarGrouping {
+    static func shape(width: Int, height: Int) -> String {
+        "\(min(width, height))x\(max(width, height))"
+    }
+
+    /// Which photos (sorted oldest first) have another photo taken within `window` seconds.
+    static func burstFlags(_ dates: [Date?], window: TimeInterval = SimilarPhotoScanner.timeWindow) -> [Bool] {
+        var flags = [Bool](repeating: false, count: dates.count)
+        guard dates.count > 1 else { return flags }
+        for index in 1..<dates.count {
+            guard let a = dates[index - 1], let b = dates[index], abs(b.timeIntervalSince(a)) <= window else { continue }
+            flags[index - 1] = true
+            flags[index] = true
+        }
+        return flags
+    }
+
+    /// Groups similar photos. Photos must be sorted oldest first. Returns groups of two or more
+    /// indices, each sorted.
+    ///
+    /// - Similar shots: each photo is compared with up to `neighbours` photos taken just before it,
+    ///   within `window` seconds, and joined if their prints are within `threshold`.
+    /// - Exact duplicates anywhere: same non-trivial hash and same shape, confirmed by a print
+    ///   distance within `duplicateThreshold` (`printFor` supplies prints that weren't computed).
+    static func group<Print>(
+        _ photos: [PhotoFingerprint<Print>],
+        threshold: Float,
+        duplicateThreshold: Float = SimilarPhotoScanner.duplicateThreshold,
+        window: TimeInterval = SimilarPhotoScanner.timeWindow,
+        neighbours: Int = SimilarPhotoScanner.neighboursToCompare,
+        distance: (Print, Print) -> Float,
+        printFor: (Int) -> Print?
+    ) -> [[Int]] {
+        let count = photos.count
+        guard count > 1 else { return [] }
+        var groups = UnionFind(count: count)
+
+        for index in 0..<count {
+            guard let current = photos[index].print, let date = photos[index].date else { continue }
+            var other = index - 1
+            while other >= 0, index - other <= neighbours,
+                  let otherDate = photos[other].date,
+                  date.timeIntervalSince(otherDate) <= window {
+                if let previous = photos[other].print, distance(current, previous) <= threshold {
+                    groups.union(index, other)
+                }
+                other -= 1
+            }
+        }
+
+        var buckets: [String: [Int]] = [:]
+        for index in 0..<count {
+            let hash = photos[index].hash
+            // All-dark or all-flat images produce trivial fingerprints; skip them.
+            guard hash != 0, hash != .max else { continue }
+            buckets["\(hash)-\(photos[index].shape)", default: []].append(index)
+        }
+        for bucket in buckets.values where bucket.count > 1 {
+            let first = photos[bucket[0]].print ?? printFor(bucket[0])
+            for index in bucket.dropFirst() where groups.find(index) != groups.find(bucket[0]) {
+                let other = photos[index].print ?? printFor(index)
+                if let first, let other, distance(first, other) <= duplicateThreshold {
+                    groups.union(index, bucket[0])
+                }
+            }
+        }
+
+        var members: [Int: [Int]] = [:]
+        for index in 0..<count {
+            members[groups.find(index), default: []].append(index)
+        }
+        return members.values.filter { $0.count > 1 }.map { $0.sorted() }.sorted { $0[0] < $1[0] }
+    }
+}
+
+nonisolated enum BestPhotoPicker {
+    /// Index of the photo to keep. Favourites always win. Otherwise sharpness matters most,
+    /// then faces (only when the set has any), then resolution.
+    static func bestIndex(_ qualities: [PhotoQuality]) -> Int {
+        guard !qualities.isEmpty else { return 0 }
+        let maxSharpness = max(qualities.map(\.sharpness).max() ?? 1, 1)
+        let maxPixels = max(qualities.map(\.pixels).max() ?? 1, 1)
+        let hasFaces = qualities.contains { $0.faceQuality != nil }
 
         func score(_ quality: PhotoQuality) -> Double {
             var score = 0.5 * quality.sharpness / maxSharpness + 0.2 * quality.pixels / maxPixels
@@ -331,7 +388,11 @@ nonisolated enum SimilarPhotoScanner {
             if quality.isFavorite { score += 10 }
             return score
         }
-        return entries.max { score($0.1) < score($1.1) }?.0.id ?? entries[0].0.id
+        var best = 0
+        for index in qualities.indices where score(qualities[index]) > score(qualities[best]) {
+            best = index
+        }
+        return best
     }
 }
 

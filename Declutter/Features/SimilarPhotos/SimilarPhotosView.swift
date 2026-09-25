@@ -49,7 +49,7 @@ struct SimilarPhotosView: View {
                     EmptyStateView(
                         systemImage: "checkmark.seal",
                         title: "No similar photos",
-                        message: "Checked \(similar.scannedCount) photos and none look alike. Your library is tidy.",
+                        message: "Checked \(counted(similar.scannedCount, "photo")) and none look alike. Your library is tidy.",
                         actionTitle: "Scan again"
                     ) {
                         similar.scan()
@@ -67,9 +67,9 @@ struct SimilarPhotosView: View {
                 .onAppear { similar.resultsShown() }
 
             ScreenSummary(
-                text: "\(similar.groups.count) sets · \(similar.extras.count) extra photos · \(ByteFormat.string(similar.extras.totalSize))",
+                text: "\(counted(similar.groups.count, "set")) · \(counted(similar.extras.count, "extra photo")) · \(ByteFormat.string(similar.extras.totalSize))",
                 detail: similar.scanDuration.map {
-                    "Checked \(similar.scannedCount) photos in \($0.formatted(.number.precision(.fractionLength(1)))) s, on this iPhone. Long-press a photo to keep it instead."
+                    "Checked \(counted(similar.scannedCount, "photo")) in \($0.formatted(.number.precision(.fractionLength(1)))) s, on this iPhone. Long-press a photo to keep it instead."
                 }
             )
             .padding(.top, Theme.gap)

@@ -81,7 +81,11 @@ nonisolated enum ContactsService {
         let request = CNContactFetchRequest(keysToFetch: summaryKeys)
         request.unifyResults = true
         try store.enumerateContacts(with: request) { contact, _ in contacts.append(contact) }
+        return ContactScanResult(groups: groupDuplicates(contacts), totalContacts: contacts.count)
+    }
 
+    /// Groups contacts that share a name, phone number or email address. Pure logic, unit tested.
+    static func groupDuplicates(_ contacts: [CNContact]) -> [ContactGroup] {
         // Link contacts that share a name, phone number or email address.
         var unionFind = UnionFind(count: contacts.count)
         var firstIndexForKey: [String: Int] = [:]
@@ -110,7 +114,7 @@ nonisolated enum ContactsService {
             members[unionFind.find(index), default: []].append(index)
         }
 
-        let groups = members.values
+        return members.values
             .filter { $0.count > 1 }
             .map { indices -> ContactGroup in
                 let groupContacts = indices.map { contacts[$0] }
@@ -121,8 +125,6 @@ nonisolated enum ContactsService {
                 )
             }
             .sorted { $0.primary.displayName.localizedStandardCompare($1.primary.displayName) == .orderedAscending }
-
-        return ContactScanResult(groups: groups, totalContacts: contacts.count)
     }
 
     /// Name with case, accents, spacing and word order ignored, so "José  Silva" matches "silva jose".
@@ -203,6 +205,18 @@ nonisolated enum ContactsService {
             matching: CNContact.predicateForContacts(withIdentifiers: plan.contactIDs),
             keysToFetch: keys
         )
+        let result = try mergedContact(plan, from: fetched)
+        let request = CNSaveRequest()
+        for other in result.removed {
+            if let removable = other.mutableCopy() as? CNMutableContact { request.delete(removable) }
+        }
+        request.update(result.kept)
+        try store.execute(request)
+    }
+
+    /// Builds the merged contact from the fetched contacts, exactly as `plan` says, without saving.
+    /// Pure logic, unit tested. Returns the updated kept contact and the contacts to delete.
+    static func mergedContact(_ plan: MergePlan, from fetched: [CNContact]) throws -> (kept: CNMutableContact, removed: [CNContact]) {
         // If any contact changed or vanished since the preview, stop rather than merge something unexpected.
         let byID = Dictionary(fetched.map { ($0.identifier, $0) }, uniquingKeysWith: { first, _ in first })
         guard byID.count == plan.contactIDs.count,
@@ -214,7 +228,6 @@ nonisolated enum ContactsService {
         let others = plan.contactIDs.filter { $0 != plan.primaryID }.compactMap { byID[$0] }
         let ordered = [original] + others
 
-        let request = CNSaveRequest()
         for other in others {
             fillIfEmpty(&primary.previousFamilyName, other.previousFamilyName)
             fillIfEmpty(&primary.nickname, other.nickname)
@@ -241,10 +254,6 @@ nonisolated enum ContactsService {
             }
             primary.contactRelations = mergeValues(primary.contactRelations, other.contactRelations) {
                 $0.name.lowercased()
-            }
-
-            if let removable = other.mutableCopy() as? CNMutableContact {
-                request.delete(removable)
             }
         }
 
@@ -287,8 +296,7 @@ nonisolated enum ContactsService {
             primary.imageData = nil
         }
 
-        request.update(primary)
-        try store.execute(request)
+        return (primary, others)
     }
 
     /// Phone numbers are the same if their digits match, ignoring spaces, symbols and a country

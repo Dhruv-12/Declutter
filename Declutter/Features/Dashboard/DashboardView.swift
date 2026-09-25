@@ -123,6 +123,7 @@ struct DashboardView: View {
                         CategoryRow(category: category, summary: model.summary(for: category))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("category.\(category.rawValue)")
                     if category != CleanupCategory.allCases.last {
                         Theme.hairline.frame(height: 1).padding(.leading, 74)
                     }
@@ -172,9 +173,12 @@ struct StorageBar: View {
     let chunkProgress: Double
 
     private var total: Double { Double(max(storage.total, 1)) }
-    private var freed: Int64 { max(freedEarlier, 0) + chunk }
-    private var cleanableShown: Int64 { min(cleanable, max(storage.used - freed, 0)) }
-    private var otherUsed: Int64 { max(storage.used - cleanableShown - freed, 0) }
+    private var breakdown: StorageBreakdown {
+        StorageBreakdown(storage: storage, cleanable: cleanable, freed: max(freedEarlier, 0) + chunk)
+    }
+    private var freed: Int64 { breakdown.freed }
+    private var cleanableShown: Int64 { breakdown.cleanable }
+    private var otherUsed: Int64 { breakdown.otherUsed }
 
     /// Thin gap between segments, showing the track through.
     private let gap: CGFloat = 2

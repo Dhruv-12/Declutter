@@ -72,6 +72,7 @@ struct SpaceFreedView: View {
         .screenBackground()
         .safeAreaInset(edge: .bottom) {
             Button("Back to home", action: onDone)
+                .accessibilityIdentifier("summary.backHome")
                 .buttonStyle(.primary)
                 .padding(.horizontal, Theme.page)
                 .padding(.vertical, 12)

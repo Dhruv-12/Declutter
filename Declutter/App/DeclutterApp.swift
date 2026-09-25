@@ -6,6 +6,7 @@ struct DeclutterApp: App {
 
     init() {
         LaunchTimer.mark(.appInit)
+        if LaunchOptions.skipIntro { BrandAppearance.apply() }
         // Nothing slow here: this runs before the first frame. The font loads on another thread.
         Task.detached(priority: .userInitiated) { FontWarmer.warm() }
     }
@@ -25,10 +26,10 @@ struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("hasFinishedOnboarding") private var hasFinishedOnboarding = false
     /// Only true when the app process starts, so returning from the background skips the intro.
-    @State private var showIntro = true
+    @State private var showIntro = !LaunchOptions.skipIntro
     /// The app's screens are added right after the intro's first frame, so that frame has
     /// nothing else to build.
-    @State private var showContent = false
+    @State private var showContent = LaunchOptions.skipIntro
 
     var body: some View {
         ZStack {
@@ -41,7 +42,11 @@ struct RootView: View {
                     }
                 }
                 // Loads permissions, storage and scans in the background while the intro plays.
-                .task { await model.start() }
+                .task {
+                    await model.start()
+                    // Without an intro (UI tests), nothing else would start the scans.
+                    if !showIntro { await model.startScans() }
+                }
             }
             if showIntro {
                 IntroView(
@@ -68,4 +73,11 @@ struct RootView: View {
             }
         }
     }
+}
+
+/// Launch settings, read from UserDefaults so UI tests can pass them as launch arguments
+/// (for example `-skipIntro YES`).
+enum LaunchOptions {
+    /// Skips the intro. Used by UI tests; normal launches always show it.
+    static var skipIntro: Bool { UserDefaults.standard.bool(forKey: "skipIntro") }
 }

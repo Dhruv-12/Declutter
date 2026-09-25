@@ -42,6 +42,7 @@ struct SelectableThumbnail: View {
             .contentShape(.rect)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isBest ? "Best photo" : (asset.mediaType == .video ? "Video" : "Photo"))
+            .accessibilityIdentifier(isBest ? "thumbnail.best" : "thumbnail")
             .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 }
@@ -97,6 +98,7 @@ struct SelectionBar: View {
         }
         .buttonStyle(.primary)
         .disabled(count == 0)
+        .accessibilityIdentifier("reviewBar")
         .tapAnimation(value: count)
         .padding(.horizontal, Theme.page)
         .padding(.top, 12)
@@ -242,6 +244,7 @@ struct ScreenSummary: View {
             Text(text)
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Theme.pine)
+                .accessibilityIdentifier("screenSummary")
             if let detail {
                 Text(detail)
                     .font(.caption)

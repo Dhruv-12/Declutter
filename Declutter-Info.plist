@@ -2,8 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Plain Pine launch screen, so it blends straight into the animated intro.
-	     Everything else in Info.plist is generated from build settings. -->
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

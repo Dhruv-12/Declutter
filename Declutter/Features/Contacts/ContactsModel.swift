@@ -68,7 +68,7 @@ final class ContactsModel {
     /// Returns a message for every group that couldn't be merged.
     func mergeAll(_ drafts: [MergeDraft], progress: (Int) -> Void) async -> [String] {
         var failures: [String] = []
-        for (index, draft) in drafts.enumerated() {
+        for (index, draft) in MergeDraft.approved(drafts).enumerated() {
             progress(index)
             do {
                 try await ContactsService.merge(draft.plan)
