@@ -6,7 +6,7 @@ struct ScreenshotsView: View {
     @Environment(AppModel.self) private var model
     @State private var reviewPlan: CleanupPlan?
 
-    private let columns = [GridItem(.adaptive(minimum: 100), spacing: 6)]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: Theme.gridGap), count: 3)
 
     private var items: [MediaItem] { model.screenshots }
 
@@ -15,6 +15,7 @@ struct ScreenshotsView: View {
     var body: some View {
         content
             .navigationTitle("Screenshots")
+            .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
                 if !items.isEmpty {
                     SelectionBar(count: selection.count, bytes: selectedBytes, singular: "screenshot", plural: "screenshots") {
@@ -69,7 +70,7 @@ struct ScreenshotsView: View {
             }
             .padding(.bottom, Theme.gap)
 
-            LazyVGrid(columns: columns, spacing: 6, pinnedViews: .sectionHeaders) {
+            LazyVGrid(columns: columns, spacing: Theme.gridGap, pinnedViews: .sectionHeaders) {
                 ForEach(sections, id: \.title) { section in
                     Section {
                         ForEach(section.items) { item in

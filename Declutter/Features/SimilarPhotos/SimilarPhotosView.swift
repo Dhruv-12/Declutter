@@ -11,6 +11,7 @@ struct SimilarPhotosView: View {
     var body: some View {
         content
             .navigationTitle("Similar photos")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) { optionsMenu }
             }
@@ -118,7 +119,7 @@ private struct SimilarGroupCard: View {
     let group: SimilarGroup
     let similar: SimilarPhotosModel
 
-    private let columns = [GridItem(.adaptive(minimum: 92), spacing: 6)]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: Theme.gridGap), count: 3)
 
     private var extrasSelected: Bool {
         group.extras.allSatisfy { similar.selection.contains($0.id) }
@@ -150,7 +151,7 @@ private struct SimilarGroupCard: View {
                 .foregroundStyle(Theme.pine)
             }
 
-            LazyVGrid(columns: columns, spacing: 6) {
+            LazyVGrid(columns: columns, spacing: Theme.gridGap) {
                 ForEach(group.items) { item in
                     let isBest = item.id == group.bestID
                     let isSelected = similar.selection.contains(item.id)
@@ -203,7 +204,7 @@ struct ScanProgressView: View {
                 ZStack(alignment: .leading) {
                     Capsule().fill(Theme.stone)
                     Capsule()
-                        .fill(Theme.pine)
+                        .fill(Theme.barUsed)
                         .frame(width: max(geometry.size.width * progress, 22))
                 }
             }

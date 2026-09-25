@@ -9,12 +9,18 @@ import UIKit
 nonisolated enum Theme {
     // MARK: Colours (light / dark)
 
+    // Dark mode is designed, not inverted: a deep forest background, slightly raised Stone
+    // surfaces with a faint edge, pale mist-green text, and a deeper Pine green for buttons.
+
     /// Mist: the background of every screen.
-    static let mist = Color(light: 0xF3F6F5, dark: 0x0D1614)
-    /// Pine: text and main buttons. In dark mode it becomes a pale mist-green so text stays readable.
+    static let mist = Color(light: 0xF3F6F5, dark: 0x0B1412)
+    /// Pine as text and icons. In dark mode a pale mist-green so it stays readable.
     static let pine = Color(light: 0x12332E, dark: 0xE2ECE8)
+    /// Pine as a fill: main buttons, checkmarks, badges. In dark mode a deeper, brighter green,
+    /// so buttons read as Pine instead of turning into pale slabs.
+    static let pineFill = Color(light: 0x12332E, dark: 0x2E6B5F)
     /// Text and icons placed on a Pine fill.
-    static let onPine = Color(light: 0xF3F6F5, dark: 0x0D1614)
+    static let onPine = Color(light: 0xF3F6F5, dark: 0xF3F6F5)
     /// Mint: space freed and success only. Use for fills and large numbers.
     static let mint = Color(light: 0x3CCB94, dark: 0x4ED6A2)
     /// Icons and text on a Mint fill.
@@ -22,7 +28,9 @@ nonisolated enum Theme {
     /// Mint dark enough to read as small text on Mist.
     static let mintText = Color(light: 0x177552, dark: 0x5FE0AE)
     /// Stone: cards and surfaces.
-    static let stone = Color(light: 0xDDE4E1, dark: 0x1B2724)
+    static let stone = Color(light: 0xDDE4E1, dark: 0x16221F)
+    /// A faint edge on cards, only in dark mode, so surfaces don't melt into the background.
+    static let cardBorder = Color(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0, darkAlpha: 0.07)
     /// Coral: delete and destructive actions only.
     static let coral = Color(light: 0xFF6B5A, dark: 0xFF7A6A)
     /// Coral dark enough to read as small text on Mist or Stone.
@@ -30,10 +38,22 @@ nonisolated enum Theme {
     /// Text on a Coral fill. Pine stays dark in both modes so it is readable on Coral.
     static let onCoral = Color(light: 0x12332E, dark: 0x12332E)
 
-    static let secondaryText = Color(light: 0x12332E, dark: 0xE2ECE8, alpha: 0.62)
-    static let hairline = Color(light: 0x12332E, dark: 0xE2ECE8, alpha: 0.10)
+    static let secondaryText = Color(light: 0x12332E, dark: 0xE2ECE8, lightAlpha: 0.62, darkAlpha: 0.6)
+    static let hairline = Color(light: 0x12332E, dark: 0xE2ECE8, lightAlpha: 0.10, darkAlpha: 0.08)
 
-    static let mistUI = UIColor(light: 0xF3F6F5, dark: 0x0D1614)
+    // Storage bar: used space, space you can free, and the empty track.
+    static let barUsed = Color(light: 0x12332E, dark: 0x5E8F83)
+    static let barCleanable = Color(light: 0x7D9A93, dark: 0x2F4A44)
+    static let barTrack = Color(light: 0xDDE4E1, dark: 0x16221F)
+
+    // Soft category colours for icons on the home screen. Chosen to stay clear of Mint
+    // (success) and Coral (delete), so those keep their meaning.
+    static let lake = Color(light: 0x3A74D8, dark: 0x7FA9F2)
+    static let amber = Color(light: 0xC47F06, dark: 0xF0B44A)
+    static let plum = Color(light: 0x9150BA, dark: 0xC592E8)
+    static let teal = Color(light: 0x13869A, dark: 0x5CC6D8)
+
+    static let mistUI = UIColor(light: 0xF3F6F5, dark: 0x0B1412)
     static let pineUI = UIColor(light: 0x12332E, dark: 0xE2ECE8)
 
     /// Exact brand colours that never change with dark mode, for the launch screen and intro.
@@ -53,8 +73,12 @@ nonisolated enum Theme {
     static let gap: CGFloat = 8
     /// Cards, buttons, sheets.
     static let radius: CGFloat = 20
-    /// Thumbnails and icon tiles.
+    /// Icon tiles and small surfaces.
     static let smallRadius: CGFloat = 12
+    /// Photo thumbnails.
+    static let thumbRadius: CGFloat = 10
+    /// Gap between photos in a grid.
+    static let gridGap: CGFloat = 3
 }
 
 // MARK: - Type
@@ -68,7 +92,7 @@ extension Font {
     }
 
     /// Big numbers like "3.2 GB".
-    static let heroNumber = Font.system(size: 52, weight: .bold, design: .rounded)
+    static let heroNumber = Font.system(size: 60, weight: .bold, design: .rounded)
     static let bigNumber = Font.system(size: 34, weight: .bold, design: .rounded)
 
     /// Button labels.
@@ -78,15 +102,17 @@ extension Font {
 // MARK: - Colour helpers
 
 extension Color {
-    nonisolated init(light: UInt32, dark: UInt32, alpha: CGFloat = 1) {
-        self.init(uiColor: UIColor(light: light, dark: dark, alpha: alpha))
+    nonisolated init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
+        self.init(uiColor: UIColor(light: light, dark: dark, lightAlpha: lightAlpha, darkAlpha: darkAlpha))
     }
 }
 
 extension UIColor {
-    nonisolated convenience init(light: UInt32, dark: UInt32, alpha: CGFloat = 1) {
+    nonisolated convenience init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
         self.init { traits in
-            UIColor(hex: traits.userInterfaceStyle == .dark ? dark : light, alpha: alpha)
+            traits.userInterfaceStyle == .dark
+                ? UIColor(hex: dark, alpha: darkAlpha)
+                : UIColor(hex: light, alpha: lightAlpha)
         }
     }
 
@@ -139,7 +165,7 @@ struct BrandButtonStyle: ButtonStyle {
 
     private var background: Color {
         switch kind {
-        case .primary: Theme.pine
+        case .primary: Theme.pineFill
         case .destructive: Theme.coral
         case .secondary, .secondaryDestructive: Theme.stone
         case .onCard: Theme.mist
@@ -161,12 +187,26 @@ extension ButtonStyle where Self == BrandButtonStyle {
 // MARK: - Surfaces
 
 extension View {
+    /// A Stone surface with the standard corner radius (and a faint edge in dark mode).
+    func surface(radius: CGFloat = Theme.radius) -> some View {
+        self
+            .background(Theme.stone, in: .rect(cornerRadius: radius))
+            .overlay {
+                RoundedRectangle(cornerRadius: radius).strokeBorder(Theme.cardBorder, lineWidth: 1)
+            }
+    }
+
     /// A Stone card with the standard padding and corner radius.
     func card(padding: CGFloat = Theme.spacing) -> some View {
         self
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
+            .surface()
+    }
+
+    /// A category's colour icon in a soft tinted circle.
+    func tintedCircle(_ tint: Color, size: CGFloat = 44) -> some View {
+        modifier(TintedCircle(tint: tint, size: size))
     }
 
     /// Mist background for a whole screen.
@@ -185,6 +225,19 @@ extension View {
     /// Animation for things that change because the user tapped. Nothing moves when Reduce Motion is on.
     func tapAnimation<Value: Equatable>(value: Value) -> some View {
         modifier(TapAnimation(value: value))
+    }
+}
+
+private struct TintedCircle: ViewModifier {
+    let tint: Color
+    let size: CGFloat
+    @Environment(\.colorScheme) private var colorScheme
+
+    func body(content: Content) -> some View {
+        content
+            .foregroundStyle(tint)
+            .frame(width: size, height: size)
+            .background(tint.opacity(colorScheme == .dark ? 0.2 : 0.13), in: .circle)
     }
 }
 

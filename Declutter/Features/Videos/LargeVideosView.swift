@@ -19,6 +19,7 @@ struct LargeVideosView: View {
     var body: some View {
         content
             .navigationTitle("Large videos")
+            .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -159,13 +160,13 @@ private struct VideoRow: View {
             Button(action: onPreview) {
                 AssetThumbnail(asset: item.asset)
                     .frame(width: 100, height: 72)
-                    .clipShape(.rect(cornerRadius: Theme.smallRadius))
+                    .clipShape(.rect(cornerRadius: Theme.thumbRadius))
                     .overlay {
                         Image(systemName: "play.fill")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(Theme.onPine)
                             .frame(width: 32, height: 32)
-                            .background(Theme.pine.opacity(0.85), in: .circle)
+                            .background(Theme.pineFill.opacity(0.9), in: .circle)
                     }
                     .overlay(alignment: .bottomTrailing) {
                         Text(item.asset.duration.durationText)
@@ -191,7 +192,7 @@ private struct VideoRow: View {
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
                         Capsule().fill(Theme.mist)
-                        Capsule().fill(Theme.pine.opacity(0.4))
+                        Capsule().fill(Theme.barCleanable)
                             .frame(width: max(geometry.size.width * fractionOfLargest, 4))
                     }
                 }
@@ -202,7 +203,7 @@ private struct VideoRow: View {
             SelectionCheckmark(isSelected: isSelected)
         }
         .padding(12)
-        .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
+        .surface()
         .overlay {
             if isSelected {
                 RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.pine, lineWidth: 2)

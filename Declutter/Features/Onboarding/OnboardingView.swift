@@ -29,6 +29,7 @@ struct OnboardingView: View {
                 VStack(spacing: Theme.gap + 4) {
                     PermissionRow(
                         icon: "photo.on.rectangle",
+                        tint: Theme.lake,
                         title: "Photos",
                         reason: "To find screenshots, large videos and similar shots.",
                         state: photoState
@@ -37,6 +38,7 @@ struct OnboardingView: View {
                     }
                     PermissionRow(
                         icon: "person.2.fill",
+                        tint: Theme.teal,
                         title: "Contacts",
                         reason: "To find duplicate contacts you can merge.",
                         state: contactsState
@@ -87,6 +89,7 @@ struct PermissionRow: View {
     enum State { case ask, granted, limited, denied }
 
     let icon: String
+    let tint: Color
     let title: String
     let reason: String
     let state: State
@@ -96,9 +99,7 @@ struct PermissionRow: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Theme.pine)
-                .frame(width: 42, height: 42)
-                .background(Theme.mist, in: .rect(cornerRadius: Theme.smallRadius))
+                .tintedCircle(tint)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)

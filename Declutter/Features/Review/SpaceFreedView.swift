@@ -53,7 +53,7 @@ struct SpaceFreedView: View {
                     }
                     SummaryRow(icon: "sparkles", title: "Freed with Declutter so far", value: ByteFormat.string(Int64(lifetimeBytes)), isLast: true)
                 }
-                .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
+                .surface()
 
                 if let error = result.contactsError {
                     Label("Contacts weren't deleted: \(error)", systemImage: "exclamationmark.triangle.fill")

@@ -12,7 +12,7 @@ struct SelectableThumbnail: View {
     var body: some View {
         AssetThumbnail(asset: asset)
             .overlay {
-                if isSelected { Color.black.opacity(0.18) }
+                if isSelected { Color.black.opacity(0.22) }
             }
             .overlay(alignment: .topLeading) {
                 if isBest { BestBadge().padding(6) }
@@ -34,11 +34,11 @@ struct SelectableThumbnail: View {
             }
             .overlay {
                 if isSelected {
-                    RoundedRectangle(cornerRadius: Theme.smallRadius)
-                        .strokeBorder(Theme.pine, lineWidth: 3)
+                    RoundedRectangle(cornerRadius: Theme.thumbRadius)
+                        .strokeBorder(Theme.pine, lineWidth: 2.5)
                 }
             }
-            .clipShape(.rect(cornerRadius: Theme.smallRadius))
+            .clipShape(.rect(cornerRadius: Theme.thumbRadius))
             .contentShape(.rect)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(isBest ? "Best photo" : (asset.mediaType == .video ? "Video" : "Photo"))
@@ -52,7 +52,7 @@ struct SelectionCheckmark: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(isSelected ? Theme.pine : Color.black.opacity(0.25))
+                .fill(isSelected ? Theme.pineFill : Color.black.opacity(0.2))
             Circle()
                 .strokeBorder(.white, lineWidth: 2)
             if isSelected {
@@ -75,7 +75,7 @@ struct BestBadge: View {
             .foregroundStyle(Theme.onPine)
             .padding(.horizontal, 7)
             .padding(.vertical, 3)
-            .background(Theme.pine, in: .capsule)
+            .background(Theme.pineFill, in: .capsule)
     }
 }
 

@@ -15,7 +15,7 @@ struct ReviewView: View {
     @State private var errorMessage: String?
     @State private var result: CleanupResult?
 
-    private let columns = [GridItem(.adaptive(minimum: 76), spacing: 6)]
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: Theme.gridGap), count: 4)
 
     private var media: [MediaItem] {
         plan.mediaSections.flatMap(\.items).filter { !kept.contains($0.id) }
@@ -123,7 +123,7 @@ struct ReviewView: View {
                 .font(.caption.weight(.medium))
                 .foregroundStyle(Theme.coralText)
             }
-            LazyVGrid(columns: columns, spacing: 6) {
+            LazyVGrid(columns: columns, spacing: Theme.gridGap) {
                 ForEach(section.items) { item in
                     SelectableThumbnail(
                         asset: item.asset,
@@ -239,9 +239,14 @@ private struct SectionTitle: View {
 
     var body: some View {
         HStack {
-            Label(category.title, systemImage: category.systemImage)
-                .font(.heading(.headline))
-                .foregroundStyle(Theme.pine)
+            HStack(spacing: 10) {
+                Image(systemName: category.systemImage)
+                    .font(.system(size: 14, weight: .semibold))
+                    .tintedCircle(category.tint, size: 30)
+                Text(category.title)
+                    .font(.heading(.headline))
+                    .foregroundStyle(Theme.pine)
+            }
             Spacer()
             Text(detail)
                 .font(.subheadline)

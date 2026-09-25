@@ -12,6 +12,7 @@ struct DuplicateContactsView: View {
     var body: some View {
         content
             .navigationTitle("Duplicate contacts")
+            .navigationBarTitleDisplayMode(.large)
             .safeAreaInset(edge: .bottom) {
                 if model.contactsStatus.canRead && !contacts.groups.isEmpty {
                     SelectionBar(count: contacts.selection.count, singular: "contact", plural: "contacts") {

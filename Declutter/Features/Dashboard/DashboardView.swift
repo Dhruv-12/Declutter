@@ -17,7 +17,7 @@ struct DashboardView: View {
         @Bindable var model = model
         NavigationStack(path: $model.path) {
             ScrollView {
-                VStack(alignment: .leading, spacing: Theme.spacing * 1.5) {
+                VStack(alignment: .leading, spacing: Theme.spacing * 2) {
                     hero
                     PermissionBanners()
                     categories
@@ -27,7 +27,8 @@ struct DashboardView: View {
                         .frame(maxWidth: .infinity)
                 }
                 .padding(.horizontal, Theme.page)
-                .padding(.vertical, Theme.spacing)
+                .padding(.top, Theme.gap)
+                .padding(.bottom, Theme.spacing * 2)
             }
             .screenBackground()
             .navigationTitle("Declutter")
@@ -54,8 +55,8 @@ struct DashboardView: View {
     // MARK: - Headline and storage bar
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: Theme.spacing) {
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: Theme.spacing + 4) {
+            VStack(alignment: .leading, spacing: 2) {
                 CountingBytes(value: shownReclaimable ?? Double(model.reclaimableBytes))
                     .font(.heroNumber)
                     .foregroundStyle(Theme.pine)
@@ -123,11 +124,11 @@ struct DashboardView: View {
                     }
                     .buttonStyle(.plain)
                     if category != CleanupCategory.allCases.last {
-                        Theme.hairline.frame(height: 1).padding(.leading, 72)
+                        Theme.hairline.frame(height: 1).padding(.leading, 74)
                     }
                 }
             }
-            .background(Theme.stone, in: .rect(cornerRadius: Theme.radius))
+            .surface()
         }
     }
 
@@ -160,7 +161,7 @@ private struct CountingBytes: View, Animatable {
     }
 }
 
-/// Wide horizontal bar: used, cleanable, freed and free space.
+/// Wide horizontal bar: used, cleanable, freed and free space, in one smooth rounded track.
 struct StorageBar: View {
     let storage: DeviceStorage
     let cleanable: Int64
@@ -175,44 +176,48 @@ struct StorageBar: View {
     private var cleanableShown: Int64 { min(cleanable, max(storage.used - freed, 0)) }
     private var otherUsed: Int64 { max(storage.used - cleanableShown - freed, 0) }
 
+    /// Thin gap between segments, showing the track through.
+    private let gap: CGFloat = 2
+    /// How far the freed chunk slides out while it turns Mint.
+    private let slide: CGFloat = 6
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             GeometryReader { geometry in
                 let width = geometry.size.width
-                let other = width * CGFloat(Double(otherUsed) / total)
+                let usedWidth = width * CGFloat(Double(otherUsed) / total)
                 let cleanableWidth = segment(cleanableShown, in: width)
-                let earlierWidth = segment(max(freedEarlier, 0), in: width)
                 let chunkWidth = segment(chunk, in: width)
-                let gap: CGFloat = 4
+                let earlierWidth = segment(max(freedEarlier, 0), in: width)
+                let cleanableX = usedWidth + (cleanableWidth > 0 ? gap : 0)
+                let chunkX = cleanableX + cleanableWidth + gap
+                let earlierX = chunkX + (chunkWidth > 0 ? chunkWidth + gap : 0) + slide
 
                 ZStack(alignment: .leading) {
-                    Capsule().fill(Theme.stone)
-
-                    HStack(spacing: 0) {
-                        Rectangle().fill(Theme.pine).frame(width: other)
-                        Rectangle().fill(Theme.pine.opacity(0.4)).frame(width: cleanableWidth)
-                    }
-                    .clipShape(Capsule())
-
-                    // Space freed earlier: Mint, just past the cleanable part.
+                    Theme.barTrack
+                    Theme.barUsed.frame(width: usedWidth)
+                    Theme.barCleanable
+                        .frame(width: cleanableWidth)
+                        .offset(x: cleanableX)
                     if earlierWidth > 0 {
                         Capsule()
                             .fill(Theme.mint)
                             .frame(width: earlierWidth)
-                            .offset(x: other + cleanableWidth + gap + chunkWidth)
+                            .offset(x: earlierX)
                     }
-
-                    // The chunk from this cleanup starts as cleanable space, then turns Mint and slides out.
+                    // This cleanup's chunk starts as cleanable space, then turns Mint and slides out.
                     if chunkWidth > 0 {
                         Capsule()
-                            .fill(Theme.pine.opacity(0.4))
+                            .fill(Theme.barCleanable)
                             .overlay(Capsule().fill(Theme.mint).opacity(chunkProgress))
                             .frame(width: chunkWidth)
-                            .offset(x: other + cleanableWidth + gap * chunkProgress)
+                            .offset(x: chunkX - gap + (gap + slide) * chunkProgress)
                     }
                 }
+                .clipShape(Capsule())
             }
-            .frame(height: 22)
+            .frame(height: 20)
+            .overlay { Capsule().strokeBorder(Theme.cardBorder, lineWidth: 1) }
             .accessibilityElement()
             .accessibilityLabel("Storage")
             .accessibilityValue(accessibilityText)
@@ -242,12 +247,12 @@ struct StorageBar: View {
     }
 
     @ViewBuilder private var legendItems: some View {
-        LegendItem(color: Theme.pine, title: "Used", value: otherUsed)
-        LegendItem(color: Theme.pine.opacity(0.4), title: "Can free", value: cleanableShown)
+        LegendItem(color: Theme.barUsed, title: "Used", value: otherUsed)
+        LegendItem(color: Theme.barCleanable, title: "Can free", value: cleanableShown)
         if freed > 0 {
             LegendItem(color: Theme.mint, title: "Freed", value: freed)
         }
-        LegendItem(color: Theme.stone, title: "Free", value: storage.available, outlined: true)
+        LegendItem(color: Theme.barTrack, title: "Free", value: storage.available, outlined: true)
     }
 
     private var accessibilityText: String {
@@ -293,9 +298,7 @@ struct CategoryRow: View {
         HStack(spacing: 14) {
             Image(systemName: category.systemImage)
                 .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(Theme.pine)
-                .frame(width: 42, height: 42)
-                .background(Theme.mist, in: .rect(cornerRadius: Theme.smallRadius))
+                .tintedCircle(category.tint)
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(category.title)
@@ -317,6 +320,8 @@ struct CategoryRow: View {
         .padding(.horizontal, Theme.spacing)
         .padding(.vertical, 14)
         .contentShape(.rect)
+        .accessibilityElement(children: .combine)
+        .accessibilityHint("Opens \(category.title.lowercased())")
     }
 
     private var detail: String {
@@ -344,7 +349,7 @@ struct CategoryRow: View {
                 .progressViewStyle(.circular)
         case .ready(_, let bytes?):
             Text(ByteFormat.string(bytes))
-                .font(.system(.subheadline, design: .rounded, weight: .bold))
+                .font(.system(.body, design: .rounded, weight: .bold))
                 .foregroundStyle(Theme.pine)
         case .needsAccess:
             Image(systemName: "lock.fill")

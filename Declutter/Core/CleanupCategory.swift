@@ -26,8 +26,15 @@ enum CleanupCategory: String, CaseIterable, Identifiable {
         }
     }
 
-    /// Every category uses the brand colour; categories are told apart by icon and name.
-    var tint: Color { Theme.pine }
+    /// Soft colour for the category's icon.
+    var tint: Color {
+        switch self {
+        case .similarPhotos: Theme.lake
+        case .screenshots: Theme.amber
+        case .largeVideos: Theme.plum
+        case .duplicateContacts: Theme.teal
+        }
+    }
 
     var needsPhotos: Bool { self != .duplicateContacts }
 }
