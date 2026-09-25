@@ -1,3 +1,4 @@
+import CoreML
 import Photos
 import UIKit
 import Vision
@@ -187,8 +188,22 @@ nonisolated enum SimilarPhotoScanner {
     static func featurePrint(of image: CGImage) -> VNFeaturePrintObservation? {
         let request = VNGenerateImageFeaturePrintRequest()
         request.revision = VNGenerateImageFeaturePrintRequestRevision2
-        try? VNImageRequestHandler(cgImage: image).perform([request])
+        perform(request, on: image)
         return request.results?.first
+    }
+
+    /// Runs a Vision request. If it fails (the simulator can't use the GPU or Neural Engine for
+    /// these requests, and a busy device can refuse too), it tries again on the CPU.
+    private static func perform(_ request: VNRequest, on image: CGImage) {
+        if (try? VNImageRequestHandler(cgImage: image).perform([request])) != nil { return }
+        let cpu = MLComputeDevice.allComputeDevices.first { device in
+            if case .cpu = device { return true }
+            return false
+        }
+        for stage in ((try? request.supportedComputeStageDevices) ?? [:]).keys {
+            request.setComputeDevice(cpu, for: stage)
+        }
+        try? VNImageRequestHandler(cgImage: image).perform([request])
     }
 
     static func distance(_ a: VNFeaturePrintObservation, _ b: VNFeaturePrintObservation) -> Float {
@@ -248,7 +263,7 @@ nonisolated enum SimilarPhotoScanner {
         quality.sharpness = sharpness(of: image)
 
         let faces = VNDetectFaceCaptureQualityRequest()
-        try? VNImageRequestHandler(cgImage: image).perform([faces])
+        perform(faces, on: image)
         quality.faceQuality = faces.results?.compactMap { $0.faceCaptureQuality.map(Double.init) }.max()
         return quality
     }

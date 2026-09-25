@@ -97,9 +97,9 @@ run() { # phase, tests…
     -destination "id=$UDID" -derivedDataPath "$DERIVED" \
     -resultBundlePath "$WORK/results/$phase.xcresult" "${only[@]}" \
     > "$WORK/logs/$phase.log" 2>&1
-  local status=$?
+  local code=$?  # (\$status is reserved in zsh)
   grep -E "(Test Case|Test ).*(passed|failed|skipped)|✔|✘|error:|\*\* TEST" "$WORK/logs/$phase.log" | grep -v "^$" | tail -60
-  RESULTS[$phase]=$([[ $status -eq 0 ]] && print PASSED || print "FAILED (see build/tests/logs/$phase.log)")
+  RESULTS[$phase]=$([[ $code -eq 0 ]] && print PASSED || print "FAILED (see build/tests/logs/$phase.log)")
 }
 
 # MARK: Build and test data
