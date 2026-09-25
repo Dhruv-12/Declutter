@@ -16,11 +16,13 @@ nonisolated enum BlurLevel: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// Photos with a blur score below this are listed. Lower scores are blurrier.
+    /// Measured on a sharp test pattern (score 510) blurred by a Gaussian of radius σ at 256 px:
+    /// σ 1 ≈ 70, σ 1.5 ≈ 36–46, σ 2.5 ≈ 18, σ 5 ≈ 8.
     var threshold: Double {
         switch self {
         case .veryBlurry: 12
-        case .blurry: 22
-        case .soft: 40
+        case .blurry: 25
+        case .soft: 60
         }
     }
 
@@ -30,9 +32,10 @@ nonisolated enum BlurLevel: String, CaseIterable, Identifiable, Sendable {
 
 /// Decides which photos are blurry. Pure logic, unit tested.
 nonisolated enum BlurDetector {
-    /// How strong a photo's sharpest edges are: the average of the strongest 1% of edge values.
+    /// How strong a photo's sharpest edges are: the average of the strongest 0.2% of edge values.
     /// Blur spreads edges out and makes them weaker. Using only the strongest edges means a
-    /// sharp photo that is mostly sky or wall still scores as sharp.
+    /// sharp photo that is mostly sky or wall still scores as sharp (a small crisp subject on a
+    /// plain background scores about 180; with the strongest 1% it would drop to about 50).
     static func score(of image: CGImage) -> Double {
         score(laplacian: SimilarPhotoScanner.laplacian(of: image))
     }
@@ -40,7 +43,7 @@ nonisolated enum BlurDetector {
     static func score(laplacian values: [Double]) -> Double {
         guard !values.isEmpty else { return 0 }
         let strengths = values.map(abs).sorted(by: >)
-        let top = strengths.prefix(max(strengths.count / 100, 1))
+        let top = strengths.prefix(max(strengths.count / 500, 1))
         return top.reduce(0, +) / Double(top.count)
     }
 

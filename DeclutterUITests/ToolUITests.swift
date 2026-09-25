@@ -12,9 +12,7 @@ final class ToolUITests: XCTestCase {
 
     /// The standard library has two out-of-focus photos; everything else is sharp.
     func testBlurryPhotos() {
-        let tile = app.anyElement("tool.blurry")
-        expectExists(tile, timeout: 20)
-        tile.tap()
+        app.openTool("blurry")
         waitForLabel(app.screenSummary, startsWith: "2 blurry photos", timeout: 120)
         XCTAssertEqual(app.all("thumbnail").count, 2)
 
@@ -42,9 +40,7 @@ final class ToolUITests: XCTestCase {
     }
 
     func testSwipeToSort() {
-        let tile = app.anyElement("tool.swipe")
-        expectExists(tile, timeout: 20)
-        tile.tap()
+        app.openTool("swipe")
 
         let card = app.anyElement("swipe.card")
         expectExists(card, timeout: 20)

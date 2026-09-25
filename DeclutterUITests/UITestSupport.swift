@@ -51,6 +51,18 @@ extension XCUIApplication {
 
     func category(_ name: String) -> XCUIElement { anyElement("category.\(name)") }
 
+    /// Scrolls the home screen until a tool tile is clear of the sticky bottom bar, then taps it.
+    func openTool(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
+        let tile = anyElement("tool.\(name)")
+        XCTAssertTrue(tile.waitForExistence(timeout: 20), "Tile for \(name) missing", file: file, line: line)
+        var swipes = 0
+        while swipes < 6 && (!tile.isHittable || tile.frame.maxY > reviewBar.frame.minY - 8) {
+            swipeUp()
+            swipes += 1
+        }
+        tile.tap()
+    }
+
     func openCategory(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
         let row = category(name)
         XCTAssertTrue(row.waitForExistence(timeout: 20), "Home row for \(name) missing", file: file, line: line)
