@@ -36,19 +36,23 @@ struct CleanupPlan: Identifiable {
     let contacts: [ContactSummary]
     /// Similar-photo groups where every photo is selected, so none would be kept.
     let fullySelectedGroups: Int
+    var events: [EventSummary] = []
 
-    var isEmpty: Bool { mediaSections.allSatisfy(\.items.isEmpty) && contacts.isEmpty }
+    var isEmpty: Bool { mediaSections.allSatisfy(\.items.isEmpty) && contacts.isEmpty && events.isEmpty }
 }
 
 struct CleanupResult {
     var photosDeleted = 0
     var videosDeleted = 0
     var contactsDeleted = 0
+    var eventsDeleted = 0
     var bytesFreed: Int64 = 0
     /// Set when photos were removed but contacts couldn't be.
     var contactsError: String?
+    /// Set when other things were removed but calendar events couldn't be.
+    var eventsError: String?
 
-    var totalItems: Int { photosDeleted + videosDeleted + contactsDeleted }
+    var totalItems: Int { photosDeleted + videosDeleted + contactsDeleted + eventsDeleted }
 }
 
 enum CleanupError: LocalizedError {
@@ -61,7 +65,7 @@ enum CleanupError: LocalizedError {
 extension AppModel {
     /// Everything selected anywhere in the app, as the home screen's Review All bar counts it.
     /// A photo picked in two places (say, Similar photos and Swipe to sort) counts once.
-    var selectedCount: Int { homeSelectedMedia.count + contacts.selection.count }
+    var selectedCount: Int { homeSelectedMedia.count + contacts.selection.count + calendar.selection.count }
 
     var selectedBytes: Int64 { homeSelectedMedia.totalSize }
 
@@ -85,7 +89,13 @@ extension AppModel {
             let fresh = items.filter { listed.insert($0.id).inserted }
             if !fresh.isEmpty { sections.append(.init(tool: tool, items: fresh)) }
         }
-        return CleanupPlan(mediaSections: sections, contacts: plan.contacts, fullySelectedGroups: plan.fullySelectedGroups)
+        return CleanupPlan(mediaSections: sections, contacts: plan.contacts, fullySelectedGroups: plan.fullySelectedGroups,
+                           events: calendar.selectedEvents)
+    }
+
+    /// Calendar events the user selected.
+    func makeCalendarPlan() -> CleanupPlan {
+        CleanupPlan(mediaSections: [], contacts: [], fullySelectedGroups: 0, events: calendar.selectedEvents)
     }
 
     /// Photos marked in Swipe to sort.
@@ -142,7 +152,11 @@ extension AppModel {
     }
 
     /// Deletes exactly the given items. Only ever called from the review screen after the user confirms.
-    func performCleanup(media: [MediaItem], contacts contactsToDelete: [ContactSummary]) async throws -> CleanupResult {
+    func performCleanup(
+        media: [MediaItem],
+        contacts contactsToDelete: [ContactSummary],
+        events eventsToDelete: [EventSummary] = []
+    ) async throws -> CleanupResult {
         var result = CleanupResult()
 
         // Photos first: iOS asks for confirmation, and if the user declines we stop before touching contacts.
@@ -179,7 +193,18 @@ extension AppModel {
                 result.contactsDeleted = contactsToDelete.count
             } catch {
                 result.contactsError = error.localizedDescription
-                if uniqueMedia.isEmpty { throw error }
+                if uniqueMedia.isEmpty && eventsToDelete.isEmpty { throw error }
+            }
+        }
+
+        if !eventsToDelete.isEmpty {
+            do {
+                let ids = eventsToDelete.map(\.id)
+                result.eventsDeleted = try await CalendarService.delete(ids)
+                calendar.remove(Set(ids))
+            } catch {
+                result.eventsError = error.localizedDescription
+                if result.totalItems == 0 && result.contactsError == nil { throw error }
             }
         }
 

@@ -6,6 +6,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
     case blurry
     case compress
     case widget
+    case calendar
 
     var id: String { rawValue }
 
@@ -15,6 +16,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .blurry: "Blurry photos"
         case .compress: "Compress videos"
         case .widget: "Home Screen widget"
+        case .calendar: "Calendar cleanup"
         }
     }
 
@@ -24,6 +26,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .blurry: "Out-of-focus shots, blurriest first"
         case .compress: "Smaller copies of big videos"
         case .widget: "Free space at a glance"
+        case .calendar: "Old events you no longer need"
         }
     }
 
@@ -33,6 +36,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .blurry: "camera.metering.unknown"
         case .compress: "arrow.down.right.and.arrow.up.left"
         case .widget: "square.grid.2x2"
+        case .calendar: "calendar"
         }
     }
 
@@ -42,6 +46,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .blurry: Theme.slate
         case .compress: Theme.plum
         case .widget: Theme.teal
+        case .calendar: Theme.amber
         }
     }
 }

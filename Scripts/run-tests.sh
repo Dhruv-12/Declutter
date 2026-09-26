@@ -143,6 +143,16 @@ for phase in $PHASES; do
     large)
       fresh_device; seed large; install_app; permissions grant
       run large DeclutterUITests/EdgeCaseUITests/testLargeLibrary ;;
+    calendar)
+      # simctl addmedia can't add calendar events, so a test in its own phase seeds them.
+      fresh_device; install_app; xcrun simctl privacy "$UDID" grant calendar "$BUNDLE"
+      run calendar-seed DeclutterTests/CalendarSeeder
+      run calendar DeclutterTests/CalendarCleanupTests DeclutterTests/CalendarStoreTests \
+        DeclutterUITests/CalendarUITests/testCleanup
+      xcrun simctl privacy "$UDID" revoke calendar "$BUNDLE"
+      run calendar-denied DeclutterUITests/CalendarUITests/testDeniedAccessExplainsWhatToDo
+      xcrun simctl privacy "$UDID" reset calendar "$BUNDLE"
+      run calendar-ask DeclutterUITests/CalendarUITests/testAsksWithAReasonFirst ;;
     feature)
       # Only the named tests, on the standard library with access granted (UI tests see phase "ui").
       fresh_device; seed standard; install_app; permissions grant
