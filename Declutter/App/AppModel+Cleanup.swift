@@ -94,6 +94,9 @@ extension AppModel {
     /// Blurry photos the user selected.
     func makeBlurryPlan() -> CleanupPlan { toolPlan(.blurry, blurry.selectedItems) }
 
+    /// Originals of photos that were just copied into the private vault.
+    func makeVaultPlan(originals: [MediaItem]) -> CleanupPlan { toolPlan(.vault, originals) }
+
     /// The original of a video that now has a smaller copy.
     func makeCompressPlan(original: MediaItem) -> CleanupPlan { toolPlan(.compress, [original]) }
 

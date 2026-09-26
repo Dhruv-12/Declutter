@@ -65,6 +65,8 @@ struct RootView: View {
         }
         .statusBarHidden(showIntro)
         .onChange(of: scenePhase) { _, phase in
+            // The private vault locks as soon as the app leaves the screen.
+            if phase == .background { model.vault.lock() }
             // The user may have changed access in the Settings app while we were in the background.
             // At launch `start()` does this, so skip it until then.
             if phase == .active && model.hasStarted {
