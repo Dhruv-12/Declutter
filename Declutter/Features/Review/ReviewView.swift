@@ -25,19 +25,7 @@ struct ReviewView: View {
         plan.contacts.filter { !kept.contains($0.id) }
     }
 
-    private var events: [EventSummary] {
-        plan.events.filter { !kept.contains($0.id) }
-    }
-
-    private var itemCount: Int { media.count + contacts.count + events.count }
-
-    /// Contacts and calendar events can't be recovered, so they get one more warning.
-    private var permanentText: String {
-        [contacts.isEmpty ? nil : counted(contacts.count, "contact"),
-         events.isEmpty ? nil : counted(events.count, "event")]
-            .compactMap { $0 }
-            .joined(separator: " and ")
-    }
+    private var itemCount: Int { media.count + contacts.count }
 
     var body: some View {
         if let result {
@@ -61,9 +49,6 @@ struct ReviewView: View {
                     if !plan.contacts.isEmpty {
                         contactSection
                     }
-                    if !plan.events.isEmpty {
-                        eventSection
-                    }
                     notes
                 }
                 .padding(.horizontal, Theme.page)
@@ -82,13 +67,13 @@ struct ReviewView: View {
             .safeAreaInset(edge: .bottom) { deleteBar }
             .interactiveDismissDisabled(isDeleting)
             .confirmationDialog(
-                "Permanently delete \(permanentText)?",
+                "Permanently delete \(counted(contacts.count, "contact"))?",
                 isPresented: $confirmingContacts,
                 titleVisibility: .visible
             ) {
                 Button("Delete \(itemCount) item\(itemCount == 1 ? "" : "s")", role: .destructive) { delete() }
             } message: {
-                Text("Contacts and calendar events can't be recovered after they're deleted.")
+                Text("Contacts can't be recovered after they're deleted.")
             }
             .alert("Couldn't delete", isPresented: Binding(
                 get: { errorMessage != nil },
@@ -177,26 +162,6 @@ struct ReviewView: View {
         }
     }
 
-    private var eventSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(
-                title: Tool.calendar.title,
-                systemImage: Tool.calendar.systemImage,
-                tint: Tool.calendar.tint,
-                detail: "\(events.count) of \(plan.events.count)"
-            )
-            VStack(spacing: 0) {
-                ForEach(plan.events) { event in
-                    EventRow(event: event, isSelected: !kept.contains(event.id))
-                        .opacity(kept.contains(event.id) ? 0.5 : 1)
-                        .onTapGesture { toggleKeep(event.id) }
-                }
-            }
-            .padding(.horizontal, Theme.spacing)
-            .surface()
-        }
-    }
-
     private var notes: some View {
         VStack(alignment: .leading, spacing: 10) {
             if !plan.mediaSections.isEmpty {
@@ -206,10 +171,6 @@ struct ReviewView: View {
                 Label("Deleted contacts can't be recovered.", systemImage: "exclamationmark.triangle")
                     .foregroundStyle(Theme.coralText)
             }
-            if !plan.events.isEmpty {
-                Label("Deleted calendar events can't be recovered, and they're removed from every device that shares the calendar.", systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(Theme.coralText)
-            }
         }
         .font(.footnote)
         .foregroundStyle(Theme.secondaryText)
@@ -217,7 +178,7 @@ struct ReviewView: View {
 
     private var deleteBar: some View {
         Button(role: .destructive) {
-            if contacts.isEmpty && events.isEmpty {
+            if contacts.isEmpty {
                 delete()
             } else {
                 Haptics.warning()
@@ -253,7 +214,6 @@ struct ReviewView: View {
         if photos > 0 { parts.append("\(photos) photo\(photos == 1 ? "" : "s")") }
         if videos > 0 { parts.append("\(videos) video\(videos == 1 ? "" : "s")") }
         if !contacts.isEmpty { parts.append("\(contacts.count) contact\(contacts.count == 1 ? "" : "s")") }
-        if !events.isEmpty { parts.append(counted(events.count, "event")) }
         return parts.isEmpty ? "Nothing selected" : parts.joined(separator: " · ")
     }
 
@@ -267,7 +227,7 @@ struct ReviewView: View {
         isDeleting = true
         Task {
             do {
-                let result = try await model.performCleanup(media: media, contacts: contacts, events: events)
+                let result = try await model.performCleanup(media: media, contacts: contacts)
                 self.result = result
             } catch CleanupError.cancelled {
                 // The user declined the iOS prompt; stay here so they can change their mind.

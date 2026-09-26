@@ -461,7 +461,6 @@
 				INFOPLIST_FILE = "Declutter-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Declutter;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Declutter lists past calendar events you may no longer need, so you can clear them out. Your calendar stays on this iPhone and nothing is deleted without your approval.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Declutter checks your contacts on this iPhone to find duplicates you can merge or remove. Your contacts never leave your device.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Declutter scans your photos and videos on this iPhone to find screenshots, large videos and similar shots you may want to remove. Nothing is uploaded and nothing is deleted without your approval.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -516,7 +515,6 @@
 				INFOPLIST_FILE = "Declutter-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Declutter;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
-				INFOPLIST_KEY_NSCalendarsFullAccessUsageDescription = "Declutter lists past calendar events you may no longer need, so you can clear them out. Your calendar stays on this iPhone and nothing is deleted without your approval.";
 				INFOPLIST_KEY_NSContactsUsageDescription = "Declutter checks your contacts on this iPhone to find duplicates you can merge or remove. Your contacts never leave your device.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Declutter scans your photos and videos on this iPhone to find screenshots, large videos and similar shots you may want to remove. Nothing is uploaded and nothing is deleted without your approval.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

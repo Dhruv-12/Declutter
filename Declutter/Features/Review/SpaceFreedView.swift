@@ -48,9 +48,6 @@ struct SpaceFreedView: View {
                     if result.contactsDeleted > 0 {
                         SummaryRow(icon: "person.crop.circle", title: "Contacts removed", value: "\(result.contactsDeleted)")
                     }
-                    if result.eventsDeleted > 0 {
-                        SummaryRow(icon: "calendar", title: "Calendar events removed", value: "\(result.eventsDeleted)")
-                    }
                     if let storage = model.storage {
                         SummaryRow(icon: "internaldrive", title: "Free on iPhone now", value: ByteFormat.string(storage.available))
                     }
@@ -60,11 +57,6 @@ struct SpaceFreedView: View {
 
                 if let error = result.contactsError {
                     Label("Contacts weren't deleted: \(error)", systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote.weight(.medium))
-                        .foregroundStyle(Theme.coralText)
-                }
-                if let error = result.eventsError {
-                    Label("Calendar events weren't deleted: \(error)", systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Theme.coralText)
                 }

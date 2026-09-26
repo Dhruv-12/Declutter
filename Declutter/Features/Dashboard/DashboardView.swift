@@ -174,10 +174,6 @@ struct DashboardView: View {
             return compress.records.isEmpty ? nil : "\(counted(compress.records.count, "video")) compressed"
         case .widget:
             return nil
-        case .calendar:
-            let calendar = model.calendar
-            guard calendar.access == .full, calendar.state == .loaded else { return nil }
-            return calendar.events.isEmpty ? "None found" : "\(counted(calendar.events.count, "old event"))"
         }
     }
 
@@ -191,8 +187,6 @@ struct DashboardView: View {
             CompressVideosView()
         case .widget:
             WidgetGuideView()
-        case .calendar:
-            CalendarCleanupView()
         }
     }
 
