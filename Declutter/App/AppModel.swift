@@ -213,11 +213,12 @@ final class AppModel {
     }
 
     /// Space that could be freed across every category we have numbers for.
+    /// An asset listed in more than one category is counted once.
     var reclaimableBytes: Int64 {
-        CleanupCategory.allCases.reduce(0) { total, category in
-            if case .ready(_, let bytes) = summary(for: category) { return total + (bytes ?? 0) }
-            return total
-        }
+        guard photoStatus.canRead else { return 0 }
+        var items = screenshots + videos
+        if similar.state == .done { items += similar.extras }
+        return SizeMath.uniqueTotal(items.map { ($0.id, $0.size) })
     }
 
     private func mediaSummary(_ items: [MediaItem]) -> CategorySummary {

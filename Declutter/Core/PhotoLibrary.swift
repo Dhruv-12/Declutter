@@ -15,6 +15,16 @@ extension Array where Element == MediaItem {
     nonisolated var totalSize: Int64 { reduce(0) { $0 + $1.size } }
 }
 
+nonisolated enum SizeMath {
+    /// Total size with each id counted once, for totals that combine several lists.
+    static func uniqueTotal(_ items: [(id: String, bytes: Int64)]) -> Int64 {
+        var seen = Set<String>()
+        return items.reduce(0) { total, item in
+            seen.insert(item.id).inserted ? total + item.bytes : total
+        }
+    }
+}
+
 nonisolated struct DashboardMedia: @unchecked Sendable {
     let screenshots: [MediaItem]
     let videos: [MediaItem]
@@ -72,12 +82,43 @@ nonisolated enum PhotoLibrary {
         return zip(assets, sizes).map { MediaItem(asset: $0, size: $1) }
     }
 
-    /// Total bytes of every file behind an asset (original, edits, Live Photo video).
-    /// Deleting the asset frees all of them.
+    /// The size the Photos app shows for an asset. Every size in Declutter comes from here.
     static func fileSize(of asset: PHAsset) -> Int64 {
-        PHAssetResource.assetResources(for: asset).reduce(0) { total, resource in
-            total + ((resource.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0)
+        let resources = PHAssetResource.assetResources(for: asset).map { resource in
+            AssetSize.Resource(type: resource.type, bytes: (resource.value(forKey: "fileSize") as? NSNumber)?.int64Value ?? 0)
         }
+        return AssetSize.bytes(of: resources)
+    }
+}
+
+/// Picks which of an asset's files count toward its size, so sizes match the Photos app.
+/// Pure logic, unit tested.
+///
+/// An asset can have several files: the original, an edited version, the edit instructions,
+/// and for a Live Photo a short video. Photos shows the size of the current version only:
+/// - Video: the edited video if there is one, otherwise the original.
+/// - Photo: the edited photo if there is one, otherwise the original.
+/// - Live Photo: that photo plus its video (edited if there is one), counted once.
+nonisolated enum AssetSize {
+    struct Resource: Equatable {
+        let type: PHAssetResourceType
+        let bytes: Int64
+    }
+
+    static func bytes(of resources: [Resource]) -> Int64 {
+        func size(_ type: PHAssetResourceType) -> Int64? {
+            resources.first { $0.type == type }?.bytes
+        }
+
+        if let video = size(.fullSizeVideo) ?? size(.video) {
+            return video
+        }
+        if let photo = size(.fullSizePhoto) ?? size(.photo) {
+            let pairedVideo = size(.fullSizePairedVideo) ?? size(.pairedVideo) ?? 0
+            return photo + pairedVideo
+        }
+        // Anything else (for example a RAW-only photo): its biggest file.
+        return resources.map(\.bytes).max() ?? 0
     }
 }
 
