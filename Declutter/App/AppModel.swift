@@ -2,6 +2,7 @@ import Contacts
 import Observation
 import Photos
 import SwiftUI
+import WidgetKit
 
 /// App-wide state: permissions, device storage and the media the dashboard summarises.
 @Observable
@@ -82,6 +83,8 @@ final class AppModel {
             let isFirstLoad = storage == nil
             storage = await DeviceStorage.load()
             if isFirstLoad { LaunchTimer.note("Storage loaded") }
+            // Keep the Home Screen widget in step (reloads from the app don't use its daily budget).
+            WidgetCenter.shared.reloadAllTimelines()
         }
     }
 

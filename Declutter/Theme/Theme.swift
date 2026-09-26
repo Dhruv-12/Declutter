@@ -14,24 +14,24 @@ nonisolated enum Theme {
     // surfaces with a faint edge, pale mist-green text, and a deeper Pine green for buttons.
 
     /// Mist: the background of every screen.
-    static let mist = Color(light: 0xF3F6F5, dark: 0x0B1412)
+    static let mist = BrandColors.mist
     /// Pine as text and icons. In dark mode a pale mist-green so it stays readable.
-    static let pine = Color(light: 0x12332E, dark: 0xE2ECE8)
+    static let pine = BrandColors.pine
     /// Pine as a fill: main buttons, checkmarks, badges. In dark mode a deeper, brighter green,
     /// so buttons read as Pine instead of turning into pale slabs.
-    static let pineFill = Color(light: 0x12332E, dark: 0x2E6B5F)
+    static let pineFill = BrandColors.pineFill
     /// Text and icons placed on a Pine fill.
     static let onPine = Color(light: 0xF3F6F5, dark: 0xF3F6F5)
     /// Mint: space freed and success only. Use for fills and large numbers.
-    static let mint = Color(light: 0x3CCB94, dark: 0x4ED6A2)
+    static let mint = BrandColors.mint
     /// Icons and text on a Mint fill.
     static let onMint = Color(light: 0x12332E, dark: 0x12332E)
     /// Mint dark enough to read as small text on Mist.
     static let mintText = Color(light: 0x177552, dark: 0x5FE0AE)
     /// Stone: cards and surfaces.
-    static let stone = Color(light: 0xDDE4E1, dark: 0x16221F)
+    static let stone = BrandColors.stone
     /// A faint edge on cards, only in dark mode, so surfaces don't melt into the background.
-    static let cardBorder = Color(light: 0xFFFFFF, dark: 0xFFFFFF, lightAlpha: 0, darkAlpha: 0.07)
+    static let cardBorder = BrandColors.cardBorder
     /// Coral: delete and destructive actions only.
     static let coral = Color(light: 0xFF6B5A, dark: 0xFF7A6A)
     /// Coral dark enough to read as small text on Mist or Stone.
@@ -39,13 +39,13 @@ nonisolated enum Theme {
     /// Text on a Coral fill. Pine stays dark in both modes so it is readable on Coral.
     static let onCoral = Color(light: 0x12332E, dark: 0x12332E)
 
-    static let secondaryText = Color(light: 0x12332E, dark: 0xE2ECE8, lightAlpha: 0.62, darkAlpha: 0.6)
+    static let secondaryText = BrandColors.secondaryText
     static let hairline = Color(light: 0x12332E, dark: 0xE2ECE8, lightAlpha: 0.10, darkAlpha: 0.08)
 
     // Storage bar: used space, space you can free, and the empty track.
-    static let barUsed = Color(light: 0x12332E, dark: 0x5E8F83)
+    static let barUsed = BrandColors.barUsed
     static let barCleanable = Color(light: 0x7D9A93, dark: 0x2F4A44)
-    static let barTrack = Color(light: 0xDDE4E1, dark: 0x16221F)
+    static let barTrack = BrandColors.barTrack
 
     // Soft category colours for icons on the home screen. Chosen to stay clear of Mint
     // (success) and Coral (delete), so those keep their meaning.
@@ -100,33 +100,6 @@ extension Font {
 
     /// Button labels.
     static let button = Font.system(.headline, design: .rounded, weight: .semibold)
-}
-
-// MARK: - Colour helpers
-
-extension Color {
-    nonisolated init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
-        self.init(uiColor: UIColor(light: light, dark: dark, lightAlpha: lightAlpha, darkAlpha: darkAlpha))
-    }
-}
-
-extension UIColor {
-    nonisolated convenience init(light: UInt32, dark: UInt32, lightAlpha: CGFloat = 1, darkAlpha: CGFloat = 1) {
-        self.init { traits in
-            traits.userInterfaceStyle == .dark
-                ? UIColor(hex: dark, alpha: darkAlpha)
-                : UIColor(hex: light, alpha: lightAlpha)
-        }
-    }
-
-    nonisolated convenience init(hex: UInt32, alpha: CGFloat = 1) {
-        self.init(
-            red: CGFloat((hex >> 16) & 0xFF) / 255,
-            green: CGFloat((hex >> 8) & 0xFF) / 255,
-            blue: CGFloat(hex & 0xFF) / 255,
-            alpha: alpha
-        )
-    }
 }
 
 // MARK: - Buttons

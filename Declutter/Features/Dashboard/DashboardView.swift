@@ -172,6 +172,8 @@ struct DashboardView: View {
             let compress = model.compress
             if compress.totalSaved > 0 { return "Saved \(ByteFormat.string(compress.totalSaved))" }
             return compress.records.isEmpty ? nil : "\(counted(compress.records.count, "video")) compressed"
+        case .widget:
+            return nil
         }
     }
 
@@ -183,6 +185,8 @@ struct DashboardView: View {
             BlurryPhotosView()
         case .compress:
             CompressVideosView()
+        case .widget:
+            WidgetGuideView()
         }
     }
 

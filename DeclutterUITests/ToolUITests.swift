@@ -79,6 +79,15 @@ final class ToolUITests: XCTestCase {
         waitForLabel(app.anyElement("tool.compress"), contains: "Saved", timeout: 20)
     }
 
+    /// The widget itself lives on the Home Screen, which UI tests can't drive; this checks the guide.
+    func testWidgetGuide() {
+        app.openTool("widget")
+        expectExists(app.anyElement("widget.steps"), timeout: 10)
+        expectExists(app.descendants(matching: .any)["Preview of the small widget"])
+        expectExists(app.descendants(matching: .any)["Preview of the medium widget"])
+        expectExists(app.text(containing: "free of"), timeout: 10, "Previews should show real storage")
+    }
+
     func testSwipeToSort() {
         app.openTool("swipe")
 

@@ -5,6 +5,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
     case swipe
     case blurry
     case compress
+    case widget
 
     var id: String { rawValue }
 
@@ -13,6 +14,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .swipe: "Swipe to sort"
         case .blurry: "Blurry photos"
         case .compress: "Compress videos"
+        case .widget: "Home Screen widget"
         }
     }
 
@@ -21,6 +23,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .swipe: "Keep or delete, one photo at a time"
         case .blurry: "Out-of-focus shots, blurriest first"
         case .compress: "Smaller copies of big videos"
+        case .widget: "Free space at a glance"
         }
     }
 
@@ -29,6 +32,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .swipe: "rectangle.stack"
         case .blurry: "camera.metering.unknown"
         case .compress: "arrow.down.right.and.arrow.up.left"
+        case .widget: "square.grid.2x2"
         }
     }
 
@@ -37,6 +41,7 @@ enum Tool: String, CaseIterable, Identifiable, Hashable {
         case .swipe: Theme.iris
         case .blurry: Theme.slate
         case .compress: Theme.plum
+        case .widget: Theme.teal
         }
     }
 }

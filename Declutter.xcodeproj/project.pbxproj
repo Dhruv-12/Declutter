@@ -6,6 +6,10 @@
 	objectVersion = 110;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		D3C1A500000000000000000E /* DeclutterWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D3C1A5000000000000000003 /* DeclutterWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		7830F47830662BB6005B9F04 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,12 +25,32 @@
 			remoteGlobalIDString = 7830F46930662BB5005B9F04;
 			remoteInfo = Declutter;
 		};
+		D3C1A500000000000000000B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7830F46230662BB5005B9F04 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D3C1A5000000000000000004;
+			remoteInfo = DeclutterWidgetExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		D3C1A500000000000000000D /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				D3C1A500000000000000000E /* DeclutterWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7830F46A30662BB5005B9F04 /* Declutter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Declutter.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7830F47730662BB6005B9F04 /* DeclutterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeclutterTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7830F48130662BB6005B9F04 /* DeclutterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = DeclutterUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D3C1A5000000000000000003 /* DeclutterWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = DeclutterWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,6 +67,16 @@
 		7830F48430662BB6005B9F04 /* DeclutterUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = DeclutterUITests;
+			sourceTree = "<group>";
+		};
+		D3C1A5000000000000000001 /* DeclutterWidget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = DeclutterWidget;
+			sourceTree = "<group>";
+		};
+		D3C1A5000000000000000002 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Shared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -63,6 +97,11 @@
 			files = (
 			);
 		};
+		D3C1A5000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -70,6 +109,8 @@
 			isa = PBXGroup;
 			children = (
 				7830F46C30662BB5005B9F04 /* Declutter */,
+				D3C1A5000000000000000002 /* Shared */,
+				D3C1A5000000000000000001 /* DeclutterWidget */,
 				7830F47A30662BB6005B9F04 /* DeclutterTests */,
 				7830F48430662BB6005B9F04 /* DeclutterUITests */,
 				7830F46B30662BB5005B9F04 /* Products */,
@@ -82,6 +123,7 @@
 				7830F46A30662BB5005B9F04 /* Declutter.app */,
 				7830F47730662BB6005B9F04 /* DeclutterTests.xctest */,
 				7830F48130662BB6005B9F04 /* DeclutterUITests.xctest */,
+				D3C1A5000000000000000003 /* DeclutterWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -96,11 +138,16 @@
 				7830F46630662BB5005B9F04 /* Sources */,
 				7830F46730662BB5005B9F04 /* Frameworks */,
 				7830F46830662BB5005B9F04 /* Resources */,
+				D3C1A500000000000000000D /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
+			dependencies = (
+				D3C1A500000000000000000C /* PBXTargetDependency */,
+			);
 			fileSystemSynchronizedGroups = (
 				7830F46C30662BB5005B9F04 /* Declutter */,
+				D3C1A5000000000000000002 /* Shared */,
 			);
 			name = Declutter;
 			productName = Declutter;
@@ -149,6 +196,25 @@
 			productReference = 7830F48130662BB6005B9F04 /* DeclutterUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		D3C1A5000000000000000004 /* DeclutterWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D3C1A5000000000000000008 /* Build configuration list for PBXNativeTarget "DeclutterWidgetExtension" */;
+			buildPhases = (
+				D3C1A5000000000000000005 /* Sources */,
+				D3C1A5000000000000000006 /* Frameworks */,
+				D3C1A5000000000000000007 /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				D3C1A5000000000000000001 /* DeclutterWidget */,
+				D3C1A5000000000000000002 /* Shared */,
+			);
+			name = DeclutterWidgetExtension;
+			productName = DeclutterWidgetExtension;
+			productReference = D3C1A5000000000000000003 /* DeclutterWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -170,6 +236,9 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 7830F46930662BB5005B9F04;
 					};
+					D3C1A5000000000000000004 = {
+						CreatedOnToolsVersion = 27.0;
+					};
 				};
 			};
 			buildConfigurationList = 7830F46530662BB5005B9F04 /* Build configuration list for PBXProject "Declutter" */;
@@ -189,6 +258,7 @@
 				7830F46930662BB5005B9F04 /* Declutter */,
 				7830F47630662BB6005B9F04 /* DeclutterTests */,
 				7830F48030662BB6005B9F04 /* DeclutterUITests */,
+				D3C1A5000000000000000004 /* DeclutterWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -205,6 +275,11 @@
 			);
 		};
 		7830F47F30662BB6005B9F04 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		D3C1A5000000000000000007 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -227,6 +302,11 @@
 			files = (
 			);
 		};
+		D3C1A5000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -239,6 +319,11 @@
 			isa = PBXTargetDependency;
 			target = 7830F46930662BB5005B9F04 /* Declutter */;
 			targetProxy = 7830F48230662BB6005B9F04 /* PBXContainerItemProxy */;
+		};
+		D3C1A500000000000000000C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D3C1A5000000000000000004 /* DeclutterWidgetExtension */;
+			targetProxy = D3C1A500000000000000000B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -581,6 +666,72 @@
 			};
 			name = Release;
 		};
+		D3C1A5000000000000000009 /* Debug configuration for PBXNativeTarget "DeclutterWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 42WTT38563;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "DeclutterWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Declutter;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dhruv.Declutter.DeclutterWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		D3C1A500000000000000000A /* Release configuration for PBXNativeTarget "DeclutterWidgetExtension" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 42WTT38563;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "DeclutterWidget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = Declutter;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.dhruv.Declutter.DeclutterWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -613,6 +764,14 @@
 			buildConfigurations = (
 				7830F49030662BB6005B9F04 /* Debug configuration for PBXNativeTarget "DeclutterUITests" */,
 				7830F49130662BB6005B9F04 /* Release configuration for PBXNativeTarget "DeclutterUITests" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		D3C1A5000000000000000008 /* Build configuration list for PBXNativeTarget "DeclutterWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D3C1A5000000000000000009 /* Debug configuration for PBXNativeTarget "DeclutterWidgetExtension" */,
+				D3C1A500000000000000000A /* Release configuration for PBXNativeTarget "DeclutterWidgetExtension" */,
 			);
 			defaultConfigurationName = Release;
 		};
