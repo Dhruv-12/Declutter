@@ -112,11 +112,17 @@ final class VaultModel {
         }.value
     }
 
-    /// Copies photos into the vault and returns the originals that were copied, so the caller
-    /// can offer to delete them through the review screen.
-    func add(_ assets: [PHAsset]) async -> (copied: [PHAsset], failed: Int) {
-        guard let store else { return ([], assets.count) }
-        let result = await VaultTransfer.copyIn(assets, to: store)
+    /// Copies photos into the vault. The result lists the originals that are safely in the vault
+    /// (only those may be offered for deletion) and why any others failed.
+    func add(_ assets: [PHAsset], progress: @escaping @MainActor @Sendable (VaultImportProgress) -> Void) async -> VaultImportResult {
+        guard let store else {
+            let failures = assets.map {
+                VaultImportFailure(id: $0.localIdentifier, takenAt: $0.creationDate,
+                                   error: .save(detail: "the vault locked before the photos were added"))
+            }
+            return VaultImportResult(copied: [], failures: failures)
+        }
+        let result = await VaultTransfer.copyIn(assets, to: store, progress: progress)
         items = (try? store.items()) ?? items
         return result
     }

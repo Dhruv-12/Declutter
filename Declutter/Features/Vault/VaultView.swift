@@ -164,7 +164,9 @@ private struct VaultContentView: View {
     @State private var selection: Set<UUID> = []
     @State private var pickerItems: [PhotosPickerItem] = []
     @State private var isWorking = false
+    @State private var progress: VaultImportProgress?
     @State private var message: String?
+    @State private var failures: [VaultImportFailure] = []
     @State private var movedOriginals: [MediaItem] = []
     @State private var reviewPlan: CleanupPlan?
     @State private var confirmingDelete = false
@@ -188,6 +190,9 @@ private struct VaultContentView: View {
             }
             .sheet(item: $reviewPlan) { ReviewView(plan: $0) }
             .sheet(item: $viewing) { item in VaultPhotoViewer(item: item) }
+            .sheet(isPresented: Binding(get: { !failures.isEmpty }, set: { if !$0 { failures = [] } })) {
+                ImportFailuresSheet(failures: failures, addedCount: movedOriginals.count)
+            }
             .confirmationDialog(
                 "Delete \(counted(selection.count, "photo")) from the vault?",
                 isPresented: $confirmingDelete,
@@ -220,10 +225,15 @@ private struct VaultContentView: View {
                 .padding(.top, Theme.gap)
 
                 if isWorking {
-                    HStack(spacing: Theme.gap) {
-                        ProgressView().tint(Theme.pine)
-                        Text("Encrypting…").foregroundStyle(Theme.secondaryText)
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(progress?.text ?? "Getting photos ready…")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundStyle(Theme.pine)
+                            .accessibilityIdentifier("vault.progress")
+                        ProgressView(value: overallProgress)
+                            .tint(Theme.pine)
                     }
+                    .padding(.horizontal, Theme.page)
                     .padding(.top, Theme.gap)
                 }
 
@@ -279,6 +289,12 @@ private struct VaultContentView: View {
         .background(Theme.mist.ignoresSafeArea())
     }
 
+    /// Whole import, 0...1: finished photos plus the current photo's download.
+    private var overallProgress: Double {
+        guard let progress, progress.total > 0 else { return 0 }
+        return (Double(progress.current - 1) + (progress.download ?? 0.5)) / Double(progress.total)
+    }
+
     private func add(_ picked: [PhotosPickerItem]) async {
         let ids = picked.compactMap(\.itemIdentifier)
         pickerItems = []
@@ -288,13 +304,15 @@ private struct VaultContentView: View {
             return
         }
         isWorking = true
-        let result = await vault.add(assets)
+        progress = nil
+        let result = await vault.add(assets) { progress = $0 }
         isWorking = false
+        progress = nil
+        // Only originals that are safely in the vault can be offered for deletion.
         movedOriginals = PhotoLibrary.sized(result.copied)
-        if result.failed > 0 {
-            message = "\(counted(result.failed, "photo")) couldn't be added. The rest are in the vault."
-        }
+        failures = result.failures
         if !result.copied.isEmpty { Haptics.success() }
+        if !result.failures.isEmpty { Haptics.warning() }
     }
 
     private func saveSelected() async {
@@ -443,5 +461,67 @@ struct PINPad: View {
                 .disabled(!VaultPIN.isValid(entry))
                 .accessibilityIdentifier("pin.submit")
         }
+    }
+}
+
+/// Which photos weren't added and why. The ones that worked are already in the vault.
+private struct ImportFailuresSheet: View {
+    let failures: [VaultImportFailure]
+    let addedCount: Int
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(failures) { failure in
+                        HStack(alignment: .top, spacing: 12) {
+                            FailureThumbnail(id: failure.id)
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(failure.label)
+                                    .font(.body.weight(.semibold))
+                                    .foregroundStyle(Theme.pine)
+                                Text(failure.error.message)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Theme.secondaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                        .listRowBackground(Theme.stone)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityIdentifier("vault.failure")
+                    }
+                } header: {
+                    Text(addedCount > 0
+                         ? "\(counted(addedCount, "photo")) added. These weren't, and stay in Photos:"
+                         : "These photos weren't added and stay in Photos:")
+                } footer: {
+                    Text("Nothing was deleted. You can try these again.")
+                }
+            }
+            .brandList()
+            .navigationTitle(failures.count == 1 ? "1 photo wasn't added" : "\(failures.count) photos weren't added")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("OK") { dismiss() } }
+            }
+        }
+    }
+}
+
+private struct FailureThumbnail: View {
+    let id: String
+
+    var body: some View {
+        Group {
+            if let asset = PHAsset.fetchAssets(withLocalIdentifiers: [id], options: nil).firstObject {
+                AssetThumbnail(asset: asset)
+            } else {
+                Theme.hairline
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(.rect(cornerRadius: Theme.thumbRadius))
+        .accessibilityHidden(true)
     }
 }

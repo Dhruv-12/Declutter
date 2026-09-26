@@ -19,8 +19,9 @@ nonisolated enum Keychain {
         return result as? Data
     }
 
+    /// Returns the Keychain status: errSecSuccess, or the reason it failed.
     @discardableResult
-    static func write(_ data: Data, for account: String) -> Bool {
+    static func write(_ data: Data, for account: String) -> OSStatus {
         delete(account)
         let item: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
@@ -30,7 +31,7 @@ nonisolated enum Keychain {
             kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecAttrSynchronizable as String: false,
         ]
-        return SecItemAdd(item as CFDictionary, nil) == errSecSuccess
+        return SecItemAdd(item as CFDictionary, nil)
     }
 
     static func delete(_ account: String) {

@@ -1,7 +1,5 @@
 import CryptoKit
 import Foundation
-import Photos
-import UIKit
 
 /// A photo in the vault. Only this summary is kept alongside the encrypted files, and it is
 /// encrypted too.
@@ -13,6 +11,11 @@ nonisolated struct VaultItem: Codable, Identifiable, Hashable, Sendable {
     /// File type of the original, such as public.heic or public.jpeg.
     let uti: String
     let byteCount: Int64
+    /// For a Live Photo, the file type of its short video, stored next to the photo.
+    /// Nil for still photos (and for vaults made before Live Photos were kept whole).
+    var liveVideoUTI: String? = nil
+
+    var isLivePhoto: Bool { liveVideoUTI != nil }
 }
 
 /// The vault's files: each photo and a small preview, encrypted with AES-GCM, plus an encrypted
@@ -60,13 +63,30 @@ nonisolated final class VaultStore: @unchecked Sendable {
 
     func thumbnail(_ id: UUID) throws -> Data { try open(file(id, "thumb")) }
 
+    /// A Live Photo's video.
+    func liveVideo(_ id: UUID) throws -> Data { try open(file(id, "video")) }
+
     // MARK: Changing
 
     @discardableResult
-    func add(photo: Data, thumbnail: Data, uti: String, takenAt: Date?) throws -> VaultItem {
-        let item = VaultItem(id: UUID(), takenAt: takenAt, addedAt: .now, uti: uti, byteCount: Int64(photo.count))
-        try write(photo, to: file(item.id, "photo"))
-        try write(thumbnail, to: file(item.id, "thumb"))
+    func add(
+        photo: Data, thumbnail: Data, uti: String, takenAt: Date?,
+        liveVideo: (data: Data, uti: String)? = nil
+    ) throws -> VaultItem {
+        let item = VaultItem(
+            id: UUID(), takenAt: takenAt, addedAt: .now, uti: uti,
+            byteCount: Int64(photo.count + (liveVideo?.data.count ?? 0)),
+            liveVideoUTI: liveVideo?.uti
+        )
+        do {
+            try write(photo, to: file(item.id, "photo"))
+            try write(thumbnail, to: file(item.id, "thumb"))
+            if let liveVideo { try write(liveVideo.data, to: file(item.id, "video")) }
+        } catch {
+            // Leave nothing half-written behind.
+            for kind in ["photo", "thumb", "video"] { try? FileManager.default.removeItem(at: file(item.id, kind)) }
+            throw error
+        }
         try lock.withLock {
             var index = try readIndex()
             index.append(item)
@@ -82,8 +102,7 @@ nonisolated final class VaultStore: @unchecked Sendable {
             try writeIndex(index.filter { !ids.contains($0.id) })
         }
         for id in ids {
-            try? FileManager.default.removeItem(at: file(id, "photo"))
-            try? FileManager.default.removeItem(at: file(id, "thumb"))
+            for kind in ["photo", "thumb", "video"] { try? FileManager.default.removeItem(at: file(id, kind)) }
         }
     }
 
@@ -105,6 +124,13 @@ nonisolated final class VaultStore: @unchecked Sendable {
     }
 
     private func write(_ data: Data, to url: URL) throws {
+        // The folder can vanish (for example if the app's storage was cleared); make sure it's there.
+        if !FileManager.default.fileExists(atPath: directory.path) {
+            try FileManager.default.createDirectory(
+                at: directory, withIntermediateDirectories: true,
+                attributes: [.protectionKey: FileProtectionType.complete]
+            )
+        }
         try VaultCrypto.seal(data, with: key).write(to: url, options: [.atomic, .completeFileProtection])
     }
 
@@ -114,66 +140,3 @@ nonisolated final class VaultStore: @unchecked Sendable {
     }
 }
 
-/// Moves photos between Photos and the vault. Everything stays on this iPhone.
-nonisolated enum VaultTransfer {
-    enum Failure: LocalizedError {
-        case notSaved
-
-        var errorDescription: String? { "The photos couldn't be saved to Photos." }
-    }
-
-    /// Copies each photo's current version into the vault. Returns how many made it in and the
-    /// originals that did (so they can be offered for deletion).
-    @concurrent
-    static func copyIn(_ assets: [PHAsset], to store: VaultStore) async -> (copied: [PHAsset], failed: Int) {
-        var copied: [PHAsset] = []
-        for asset in assets {
-            guard let (data, uti) = await imageData(for: asset),
-                  let thumbnail = makeThumbnail(from: data)
-            else { continue }
-            if (try? store.add(photo: data, thumbnail: thumbnail, uti: uti, takenAt: asset.creationDate)) != nil {
-                copied.append(asset)
-            }
-        }
-        return (copied, assets.count - copied.count)
-    }
-
-    /// Adds vault photos back to Photos with their original dates. They stay in the vault.
-    @concurrent
-    static func saveToPhotos(_ items: [VaultItem], from store: VaultStore) async throws {
-        let photos = try items.map { (item: $0, data: try store.photo($0.id)) }
-        do {
-            try await PHPhotoLibrary.shared().performChanges {
-                for (item, data) in photos {
-                    let request = PHAssetCreationRequest.forAsset()
-                    let options = PHAssetResourceCreationOptions()
-                    options.uniformTypeIdentifier = item.uti
-                    request.addResource(with: .photo, data: data, options: options)
-                    request.creationDate = item.takenAt
-                }
-            }
-        } catch {
-            throw Failure.notSaved
-        }
-    }
-
-    private static func imageData(for asset: PHAsset) async -> (Data, String)? {
-        let options = PHImageRequestOptions()
-        options.version = .current
-        options.deliveryMode = .highQualityFormat
-        options.isNetworkAccessAllowed = true
-        return await withCheckedContinuation { continuation in
-            PHImageManager.default().requestImageDataAndOrientation(for: asset, options: options) { data, uti, _, _ in
-                guard let data else { return continuation.resume(returning: nil) }
-                continuation.resume(returning: (data, uti ?? "public.jpeg"))
-            }
-        }
-    }
-
-    static func makeThumbnail(from data: Data) -> Data? {
-        guard let image = UIImage(data: data),
-              let small = image.preparingThumbnail(of: CGSize(width: 400, height: 400 * image.size.height / max(image.size.width, 1)))
-        else { return nil }
-        return small.jpegData(compressionQuality: 0.8)
-    }
-}

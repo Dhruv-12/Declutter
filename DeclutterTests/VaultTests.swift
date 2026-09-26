@@ -1,5 +1,7 @@
 import CryptoKit
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 import Photos
 import Testing
 import UIKit
@@ -120,6 +122,100 @@ struct VaultStoreTests {
     }
 }
 
+/// The save path: from Photos into the vault, file by file.
+@Suite("Vault save path", .serialized)
+struct VaultSavePathTests {
+    private func folder() -> URL {
+        FileManager.default.temporaryDirectory.appendingPathComponent("VaultSave-\(UUID().uuidString)")
+    }
+
+    private func image(width: Int, height: Int) -> CGImage {
+        let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
+                                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                                bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue)!
+        context.setFillColor(red: 0.2, green: 0.6, blue: 0.5, alpha: 1)
+        context.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return context.makeImage()!
+    }
+
+    private func encode(_ image: CGImage, as type: UTType, orientation: Int = 1) -> Data? {
+        let data = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(data, type.identifier as CFString, 1, nil) else { return nil }
+        CGImageDestinationAddImage(destination, image, [kCGImagePropertyOrientation: orientation] as CFDictionary)
+        return CGImageDestinationFinalize(destination) ? data as Data : nil
+    }
+
+    @Test func folderThatDisappearedIsRecreated() throws {
+        let store = try VaultStore(directory: folder(), key: SymmetricKey(size: .bits256))
+        try FileManager.default.removeItem(at: store.directory)
+        let item = try store.add(photo: Data("photo".utf8), thumbnail: Data("thumb".utf8), uti: "public.jpeg", takenAt: nil)
+        #expect(try store.photo(item.id) == Data("photo".utf8))
+    }
+
+    @Test func failedWriteLeavesNothingBehind() throws {
+        let store = try VaultStore(directory: folder(), key: SymmetricKey(size: .bits256))
+        // A read-only folder makes every write fail.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: store.directory.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: store.directory.path) }
+        #expect(throws: (any Error).self) {
+            try store.add(photo: Data("photo".utf8), thumbnail: Data("thumb".utf8), uti: "public.jpeg", takenAt: nil)
+        }
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: store.directory.path)
+        #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path).isEmpty)
+        #expect(try store.items().isEmpty)
+    }
+
+    @Test func livePhotoIsKeptWhole() throws {
+        let store = try VaultStore(directory: folder(), key: SymmetricKey(size: .bits256))
+        let item = try store.add(photo: Data("still".utf8), thumbnail: Data("thumb".utf8), uti: "public.heic",
+                                 takenAt: nil, liveVideo: (Data("motion".utf8), "com.apple.quicktime-movie"))
+        #expect(item.isLivePhoto)
+        #expect(item.liveVideoUTI == "com.apple.quicktime-movie")
+        #expect(try store.liveVideo(item.id) == Data("motion".utf8))
+        #expect(item.byteCount == Int64("still".utf8.count + "motion".utf8.count))
+        try store.delete([item.id])
+        #expect(try FileManager.default.contentsOfDirectory(atPath: store.directory.path) == ["index"])
+    }
+
+    @Test func vaultsMadeBeforeLivePhotosStillOpen() throws {
+        let old = #"[{"id":"6E3B0C1A-7F9D-4B7B-9E0C-6C1D2A3B4C5D","addedAt":0,"uti":"public.jpeg","byteCount":5}]"#
+        let items = try JSONDecoder().decode([VaultItem].self, from: Data(old.utf8))
+        #expect(items.first?.isLivePhoto == false)
+    }
+
+    @Test func previewsWorkForHEICAndRespectRotation() throws {
+        let wide = image(width: 1200, height: 600)
+        let jpeg = try #require(encode(wide, as: .jpeg, orientation: 6), "JPEG encoding")
+        let preview = try #require(VaultTransfer.makeThumbnail(from: jpeg))
+        let rotated = try #require(UIImage(data: preview))
+        #expect(rotated.size.height > rotated.size.width, "Orientation 6 turns a wide photo tall")
+        #expect(max(rotated.size.width, rotated.size.height) <= 400)
+
+        if let heic = encode(wide, as: .heic) {
+            let preview = try #require(VaultTransfer.makeThumbnail(from: heic), "HEIC preview")
+            #expect(UIImage(data: preview) != nil)
+        }
+        #expect(VaultTransfer.makeThumbnail(from: Data("not an image".utf8)) == nil)
+    }
+
+    @Test func keychainKeyIsMadeOnceAndReused() throws {
+        let first = try VaultCrypto.deviceKey()
+        let second = try VaultCrypto.deviceKey()
+        #expect(first.withUnsafeBytes { Data($0) } == second.withUnsafeBytes { Data($0) })
+    }
+
+    @Test func errorsExplainWhatHappened() {
+        let offline = VaultImportError.iCloudDownload(domain: NSURLErrorDomain, code: NSURLErrorNotConnectedToInternet, detail: "offline")
+        #expect(offline.message.contains("offline"))
+        #expect(VaultImportError.noData(inCloud: true).message.contains("iCloud"))
+        #expect(VaultImportError.unreadableFormat(uti: "public.xyz").message.contains("public.xyz"))
+        #expect(VaultImportError.liveVideo(detail: "gone").message.contains("Live Photo"))
+        #expect(VaultImportError.save(detail: "disk full").message.contains("disk full"))
+        #expect(VaultImportProgress(current: 2, total: 5, download: 0.4).text == "Downloading photo 2 of 5 from iCloud… 40%")
+        #expect(VaultImportProgress(current: 2, total: 5, download: nil).text == "Encrypting photo 2 of 5…")
+    }
+}
+
 /// Moves real seeded photos into a throwaway vault and back to Photos.
 @Suite("Vault and Photos (seeded simulator)", .serialized,
        .enabled(if: PHPhotoLibrary.authorizationStatus(for: .readWrite) == .authorized, "Needs Photos access"))
@@ -132,15 +228,31 @@ struct VaultTransferTests {
             key: SymmetricKey(size: .bits256)
         )
 
-        let result = await VaultTransfer.copyIn(photos, to: store)
-        #expect(result.failed == 0)
+        let reports = ProgressLog()
+        let result = await VaultTransfer.copyIn(photos, to: store) { reports.add($0) }
+        #expect(result.failures.isEmpty, "\(result.failures.map(\.error.message))")
         #expect(result.copied.map(\.localIdentifier) == photos.map(\.localIdentifier))
+
         let items = try store.items()
         #expect(items.count == 2)
         #expect(Set(items.compactMap(\.takenAt)) == Set(photos.compactMap(\.creationDate)))
+        for item in items {
+            #expect(UIImage(data: try store.photo(item.id)) != nil, "The photo decrypts to a real image")
+            #expect(UIImage(data: try store.thumbnail(item.id)) != nil, "So does its preview")
+        }
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(reports.values.contains { $0.current == 2 && $0.total == 2 })
 
         let before = PHAsset.fetchAssets(with: .image, options: nil).count
         try await VaultTransfer.saveToPhotos(items, from: store)
         #expect(PHAsset.fetchAssets(with: .image, options: nil).count == before + 2)
     }
+}
+
+/// Records progress reports, from any thread.
+private final class ProgressLog: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: [VaultImportProgress] = []
+    func add(_ progress: VaultImportProgress) { lock.withLock { stored.append(progress) } }
+    var values: [VaultImportProgress] { lock.withLock { stored } }
 }

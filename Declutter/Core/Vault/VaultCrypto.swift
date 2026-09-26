@@ -7,7 +7,18 @@ import Foundation
 nonisolated enum VaultCrypto {
     private static let keyAccount = "encryption-key"
 
-    enum Failure: Error { case unreadable }
+    enum Failure: LocalizedError {
+        case unreadable
+        case keychain(OSStatus)
+
+        var errorDescription: String? {
+            switch self {
+            case .unreadable: "The vault's data couldn't be read."
+            case .keychain(let status):
+                "The vault's key couldn't be stored in the Keychain (\(SecCopyErrorMessageString(status, nil) as String? ?? "error \(status)")). Make sure your iPhone has a passcode set."
+            }
+        }
+    }
 
     /// This device's vault key, created the first time it's needed.
     static func deviceKey() throws -> SymmetricKey {
@@ -16,7 +27,8 @@ nonisolated enum VaultCrypto {
         }
         let key = SymmetricKey(size: .bits256)
         let data = key.withUnsafeBytes { Data($0) }
-        guard Keychain.write(data, for: keyAccount) else { throw Failure.unreadable }
+        let status = Keychain.write(data, for: keyAccount)
+        guard status == errSecSuccess else { throw Failure.keychain(status) }
         return key
     }
 
@@ -83,7 +95,7 @@ nonisolated enum VaultPIN {
 
     static var isSet: Bool { Keychain.read(account) != nil }
 
-    static func save(_ pin: String) -> Bool { Keychain.write(record(for: pin), for: account) }
+    static func save(_ pin: String) -> Bool { Keychain.write(record(for: pin), for: account) == errSecSuccess }
 
     static func check(_ pin: String) -> Bool {
         guard let record = Keychain.read(account) else { return false }
