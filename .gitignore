@@ -1,5 +1,33 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Xcode: per-user state (open files, breakpoints, scheme lists)
 xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+*.xccheckout
+
+# Xcode: build output
 DerivedData/
 build/
-.DS_Store
-*.xcuserstate
+*.xcresult
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.hmap
+
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+
+# Test runs (Scripts/run-tests.sh writes generated photos, videos, contacts and results here)
+build/tests/
+
+# Editors
+.vscode/
+.idea/
+*.swp
