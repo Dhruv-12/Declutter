@@ -102,10 +102,12 @@ final class ToolUITests: XCTestCase {
         app.buttons["swipe.undo"].tap()
         waitForLabel(app.reviewBar, startsWith: "Select photos to review")
 
-        // Buttons work too: mark one, keep one, mark one.
-        app.buttons["swipe.delete"].tap()
-        app.buttons["swipe.keep"].tap()
-        app.buttons["swipe.delete"].tap()
+        // Buttons work too: mark one, keep one, mark one. Each card flies off before the next tap,
+        // since taps during that short animation are ignored on purpose (no accidental double marks).
+        for button in ["swipe.delete", "swipe.keep", "swipe.delete"] {
+            app.buttons[button].tap()
+            usleep(500_000)
+        }
         waitForLabel(app.reviewBar, startsWith: "Review 2 photos")
 
         // Review, cancel: nothing deleted, both still marked.

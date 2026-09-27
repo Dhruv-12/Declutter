@@ -25,6 +25,9 @@ struct SelectableThumbnail: View {
                         .padding(.horizontal, 6)
                         .padding(.vertical, 3)
                         .background(.black.opacity(0.5), in: .capsule)
+                        // A badge on a small thumbnail: it stops growing before it outgrows the photo.
+                        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                        .fixedSize()
                         .padding(6)
                 }
             }
@@ -100,6 +103,8 @@ struct SelectionBar: View {
         .disabled(count == 0)
         .accessibilityIdentifier("reviewBar")
         .tapAnimation(value: count)
+        // The bar stays on screen, so its text stops growing before it crowds out the content.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
         .padding(.horizontal, Theme.page)
         .padding(.top, 12)
         .padding(.bottom, 8)
@@ -127,6 +132,16 @@ struct EmptyStateView: View {
     var action: (() -> Void)? = nil
 
     var body: some View {
+        // Centred when it fits; with very large text it scrolls instead of being cut off.
+        ViewThatFits(in: .vertical) {
+            content
+            ScrollView { content }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .screenBackground()
+    }
+
+    private var content: some View {
         VStack(spacing: Theme.spacing) {
             Image(systemName: systemImage)
                 .font(.system(size: 34, weight: .semibold))
@@ -149,8 +164,7 @@ struct EmptyStateView: View {
             }
         }
         .padding(Theme.page * 1.5)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .screenBackground()
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -158,7 +172,7 @@ struct EmptyStateView: View {
 struct PhotoAccessNeededView: View {
     var body: some View {
         EmptyStateView(
-            systemImage: "photo.badge.exclamationmark",
+            systemImage: Symbols.photoAccessOff,
             title: "Photo access is off",
             message: "Turn on Photos access in Settings so Declutter can look through your library on this iPhone.",
             actionTitle: "Open Settings"

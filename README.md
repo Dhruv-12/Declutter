@@ -4,7 +4,7 @@ An iPhone app that frees up storage by finding duplicate and similar photos, scr
 videos, blurry shots and duplicate contacts, and removing them safely after you review them.
 Everything happens on the device. Nothing is uploaded, and nothing is deleted without your approval.
 
-Built for iPhone, iOS 17 or later, in SwiftUI.
+Supports iPhone, iOS 17.0 and later. Built in SwiftUI.
 
 ## Features
 

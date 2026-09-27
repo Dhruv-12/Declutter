@@ -5,8 +5,15 @@
 #   PHASES="unit ui" Scripts/run-tests.sh
 #   PHASES=feature FEATURE_TESTS="DeclutterTests/BlurDetectorTests DeclutterUITests/ToolUITests/testBlurryPhotos" \
 #     Scripts/run-tests.sh               # just these tests, on the standard library
+#   PHASES=screens DEVICE="iPhone SE (3rd generation)" TEXT_SIZE=accessibility-extra-extra-extra-large \
+#     Scripts/run-tests.sh               # screenshots of every main screen
 #
-# Phases: unit, ui, permissions (ask → denied → granted), empty, unique, large, feature.
+# Phases: unit, ui, permissions (ask → denied → granted), empty, unique, large, feature, screens.
+#
+# Options:
+#   DEVICE      iPhone model, for example "iPhone SE (3rd generation)" (default: first standard iPhone)
+#   IOS         iOS version of the simulator runtime, for example 17.5 (default: newest installed)
+#   TEXT_SIZE   Dynamic Type size, for example accessibility-extra-extra-extra-large (default: large)
 # Each phase erases the simulator, seeds it with `xcrun simctl addmedia`, sets permissions with
 # `xcrun simctl privacy`, then runs only the tests for that phase.
 # Results: build/tests/results/<phase>.xcresult, logs in build/tests/logs.
@@ -27,16 +34,25 @@ say() { print -P "%F{cyan}▶ $*%f" }
 
 # MARK: Simulator
 
-# Newest iOS runtime, and the first iPhone it supports (Pro, not Max/Plus).
-read RUNTIME DEVICE_TYPE < <(xcrun simctl list runtimes available -j | python3 -c '
-import json, sys
+# The iOS runtime (IOS, or the newest) and the iPhone (DEVICE, or the first standard model it supports).
+read RUNTIME DEVICE_TYPE < <(xcrun simctl list runtimes available -j | IOS="${IOS:-}" DEVICE="${DEVICE:-}" python3 -c '
+import json, os, sys
 runtimes = [r for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS" and r["isAvailable"]]
+if os.environ["IOS"]:
+    runtimes = [r for r in runtimes if r["version"].startswith(os.environ["IOS"])]
 if runtimes:
     runtime = runtimes[-1]
-    phones = [t for t in runtime["supportedDeviceTypes"]
-              if t["name"].startswith("iPhone") and "Max" not in t["name"] and "Plus" not in t["name"]]
-    print(runtime["identifier"], phones[0]["identifier"])')
-[[ -z "${RUNTIME:-}" ]] && { print "No iOS simulator runtime. Install one: xcodebuild -downloadPlatform iOS"; exit 1 }
+    phones = [t for t in runtime["supportedDeviceTypes"] if t["name"].startswith("iPhone")]
+    wanted = os.environ["DEVICE"]
+    phones = [t for t in phones if t["name"] == wanted] if wanted else \
+             [t for t in phones if "Max" not in t["name"] and "Plus" not in t["name"]]
+    if phones:
+        print(runtime["identifier"], phones[0]["identifier"])')
+if [[ -z "${RUNTIME:-}" || -z "${DEVICE_TYPE:-}" ]]; then
+  print "No simulator for iOS ${IOS:-(newest)} ${DEVICE:-}. Installed runtimes:"; xcrun simctl list runtimes
+  print "Install one with: xcodebuild -downloadPlatform iOS${IOS:+ -buildVersion $IOS}"
+  exit 1
+fi
 
 for old in $(xcrun simctl list devices -j | python3 -c "
 import json, sys
@@ -48,12 +64,17 @@ done
 UDID=$(xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$RUNTIME")
 say "Simulator $DEVICE_NAME ($DEVICE_TYPE, $RUNTIME): $UDID"
 
+booted() {
+  xcrun simctl boot "$UDID" >/dev/null 2>&1  # no-op if already booted
+  xcrun simctl bootstatus "$UDID" -b >/dev/null
+}
+
 fresh_device() {
   xcrun simctl shutdown "$UDID" >/dev/null 2>&1
   xcrun simctl erase "$UDID"
-  xcrun simctl boot "$UDID"
-  xcrun simctl bootstatus "$UDID" -b >/dev/null
+  booted
   empty_photo_library
+  [[ -n "${TEXT_SIZE:-}" ]] && xcrun simctl ui "$UDID" content_size "$TEXT_SIZE"
 }
 
 # New simulators come with a few sample photos. Remove them so each phase starts from a known library.
@@ -61,8 +82,7 @@ empty_photo_library() {
   local media="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Media"
   xcrun simctl shutdown "$UDID" >/dev/null 2>&1
   rm -rf "$media/DCIM" "$media/PhotoData"
-  xcrun simctl boot "$UDID"
-  xcrun simctl bootstatus "$UDID" -b >/dev/null
+  booted
 }
 
 seed() {
@@ -79,8 +99,9 @@ seed() {
   say "Seeded $1: ${#files} media files"
 }
 
-install_app() { xcrun simctl install "$UDID" "$APP" }
+install_app() { booted; xcrun simctl install "$UDID" "$APP" }
 permissions() { # grant|revoke|reset
+  booted
   if [[ "$1" == reset ]]; then
     xcrun simctl privacy "$UDID" reset all "$BUNDLE"
   else
@@ -94,9 +115,13 @@ run() { # phase, tests…
   local only=("${@/#/-only-testing:}")
   rm -rf "$WORK/results/$phase.xcresult"
   say "Running $phase: $*"
+  booted
+  # Tests run on this simulator itself: parallel testing would run them on clones, which
+  # don't see the seeding and permission changes made here.
   TEST_RUNNER_DECLUTTER_PHASE="$phase" xcodebuild test-without-building \
     -project "$ROOT/Declutter.xcodeproj" -scheme Declutter \
     -destination "id=$UDID" -derivedDataPath "$DERIVED" \
+    -parallel-testing-enabled NO \
     -resultBundlePath "$WORK/results/$phase.xcresult" "${only[@]}" \
     > "$WORK/logs/$phase.log" 2>&1
   local code=$?  # (\$status is reserved in zsh)
@@ -126,7 +151,7 @@ for phase in $PHASES; do
       run unit DeclutterTests ;;
     ui)
       fresh_device; seed standard; install_app; permissions grant
-      run ui DeclutterUITests/CategoryFlowUITests ;;
+      run ui DeclutterUITests/CategoryFlowUITests DeclutterUITests/ToolUITests DeclutterUITests/VaultUITests ;;
     permissions)
       fresh_device; seed standard; install_app; permissions reset
       run permissions-ask DeclutterUITests/PermissionUITests/testFirstLaunchAsksForAccess
@@ -143,6 +168,10 @@ for phase in $PHASES; do
     large)
       fresh_device; seed large; install_app; permissions grant
       run large DeclutterUITests/EdgeCaseUITests/testLargeLibrary ;;
+    screens)
+      # Screenshots of every main screen, kept in the result bundle.
+      fresh_device; seed standard; install_app; permissions grant
+      run screens DeclutterUITests/ScreenTourUITests ;;
     feature)
       # Only the named tests, on the standard library with access granted (UI tests see phase "ui").
       fresh_device; seed standard; install_app; permissions grant

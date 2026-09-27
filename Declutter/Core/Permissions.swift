@@ -29,6 +29,14 @@ extension CNAuthorizationStatus {
     }
 }
 
+/// SF Symbols that only exist on newer iOS, with a look-alike for iOS 17.
+enum Symbols {
+    /// "Photo access is off". The badged photo arrived in iOS 18.
+    static var photoAccessOff: String {
+        if #available(iOS 18.0, *) { "photo.badge.exclamationmark" } else { "photo.on.rectangle.angled" }
+    }
+}
+
 enum SystemSettings {
     /// Opens this app's page in the Settings app, where the user can change Photos and Contacts access.
     static func open() {

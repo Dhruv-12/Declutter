@@ -114,11 +114,14 @@ struct BrandButtonStyle: ButtonStyle {
 
     @Environment(\.isEnabled) private var isEnabled
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(.button)
-            .lineLimit(1)
+            // One line normally. With the largest text sizes a label wraps instead of being cut off.
+            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+            .multilineTextAlignment(.center)
             .minimumScaleFactor(0.8)
             .foregroundStyle(foreground)
             .padding(.horizontal, 18)
@@ -157,6 +160,23 @@ extension ButtonStyle where Self == BrandButtonStyle {
     /// Small, content-sized version for buttons inside cards and banners.
     static func compact(_ kind: BrandButtonStyle.Kind) -> BrandButtonStyle {
         BrandButtonStyle(kind: kind, fullWidth: false)
+    }
+}
+
+// MARK: - Layout helpers
+
+/// Side by side normally; stacked with the largest text sizes, so text gets the full width
+/// instead of wrapping in the middle of words and numbers.
+struct AdaptiveStack<Content: View>: View {
+    var spacing: CGFloat = 14
+    @ViewBuilder let content: () -> Content
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    var body: some View {
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: spacing))
+            : AnyLayout(HStackLayout(spacing: spacing))
+        layout(content)
     }
 }
 

@@ -19,7 +19,8 @@ struct VaultView: View {
             }
         }
         .navigationTitle("Private vault")
-        .navigationBarTitleDisplayMode(.large)
+        // Inline while the PIN pad shows, so the whole pad fits on an iPhone SE.
+        .navigationBarTitleDisplayMode(vault.state == .unlocked ? .large : .inline)
         .overlay {
             // Keeps vault photos out of the app switcher's snapshot.
             if scenePhase != .active && vault.state == .unlocked {
@@ -47,33 +48,41 @@ private struct VaultSetupView: View {
     @State private var firstPIN: String?
     @State private var entry = ""
     @State private var mismatch = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Theme.spacing * 1.5) {
+            VStack(spacing: Theme.spacing) {
                 Image(systemName: "lock.shield")
-                    .font(.system(size: 34, weight: .semibold))
-                    .tintedCircle(Tool.vault.tint, size: 84)
+                    .font(.system(size: 28, weight: .semibold))
+                    .tintedCircle(Tool.vault.tint, size: 64)
                 VStack(spacing: Theme.gap) {
                     Text(firstPIN == nil ? "Create a PIN" : "Enter it again")
                         .font(.heading(.title3))
                         .foregroundStyle(Theme.pine)
-                    Text(firstPIN == nil
-                         ? "Photos you move here are encrypted on this iPhone and hidden from Photos. \(model.vault.biometryName ?? "Face ID") opens the vault; this 4 to 6 digit PIN is the backup."
-                         : "Type the same PIN to confirm it.")
-                        .foregroundStyle(Theme.secondaryText)
-                        .multilineTextAlignment(.center)
+                    // With very large text the explanation fills the screen, so it goes below the keypad.
+                    if !typeSize.isAccessibilitySize { explanation }
                     if mismatch {
                         Text("Those PINs didn't match. Start again.")
                             .font(.subheadline.weight(.medium))
                             .foregroundStyle(Theme.coralText)
+                            .multilineTextAlignment(.center)
                     }
                 }
                 PINPad(entry: $entry, actionTitle: firstPIN == nil ? "Next" : "Create PIN") { next() }
+                if typeSize.isAccessibilitySize { explanation }
             }
             .padding(Theme.page)
         }
         .screenBackground()
+    }
+
+    private var explanation: some View {
+        Text(firstPIN == nil
+             ? "Photos you move here are encrypted on this iPhone and hidden from Photos. \(model.vault.biometryName ?? "Face ID") opens the vault; this 4 to 6 digit PIN is the backup."
+             : "Type the same PIN to confirm it.")
+            .foregroundStyle(Theme.secondaryText)
+            .multilineTextAlignment(.center)
     }
 
     private func next() {
@@ -106,10 +115,10 @@ private struct VaultLockedView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: Theme.spacing * 1.5) {
+            VStack(spacing: Theme.spacing) {
                 Image(systemName: "lock.fill")
-                    .font(.system(size: 34, weight: .semibold))
-                    .tintedCircle(Tool.vault.tint, size: 84)
+                    .font(.system(size: 28, weight: .semibold))
+                    .tintedCircle(Tool.vault.tint, size: 64)
                 Text("Your vault is locked")
                     .font(.heading(.title3))
                     .foregroundStyle(Theme.pine)
@@ -412,7 +421,7 @@ struct PINPad: View {
     private let keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "", "0", "delete"]
 
     var body: some View {
-        VStack(spacing: Theme.spacing * 1.5) {
+        VStack(spacing: Theme.spacing) {
             HStack(spacing: 14) {
                 ForEach(0..<VaultPIN.validLengths.upperBound, id: \.self) { index in
                     Circle()
@@ -424,10 +433,10 @@ struct PINPad: View {
             .accessibilityElement()
             .accessibilityLabel("\(entry.count) digits entered")
 
-            LazyVGrid(columns: Array(repeating: GridItem(.fixed(78), spacing: 18), count: 3), spacing: 14) {
+            LazyVGrid(columns: Array(repeating: GridItem(.fixed(78), spacing: 18), count: 3), spacing: 10) {
                 ForEach(keys, id: \.self) { key in
                     if key.isEmpty {
-                        Color.clear.frame(height: 64)
+                        Color.clear.frame(height: 56)
                     } else {
                         Button {
                             Haptics.select()
@@ -446,7 +455,7 @@ struct PINPad: View {
                             }
                             .font(.system(size: 26, weight: .semibold, design: .rounded))
                             .foregroundStyle(Theme.pine)
-                            .frame(width: 78, height: 64)
+                            .frame(width: 78, height: 56)
                             .background(key == "delete" ? Color.clear : Theme.stone, in: .rect(cornerRadius: Theme.radius))
                         }
                         .buttonStyle(.plain)

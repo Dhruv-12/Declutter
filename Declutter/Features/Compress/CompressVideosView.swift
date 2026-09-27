@@ -74,7 +74,7 @@ private struct CompressRow: View {
     let isCopy: Bool
 
     var body: some View {
-        HStack(spacing: 14) {
+        AdaptiveStack {
             AssetThumbnail(asset: item.asset)
                 .frame(width: 88, height: 64)
                 .clipShape(.rect(cornerRadius: Theme.thumbRadius))
@@ -85,6 +85,9 @@ private struct CompressRow: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 2)
                         .background(.black.opacity(0.5), in: .rect(cornerRadius: 4))
+                        // A badge on a small thumbnail: it stops growing before it outgrows the photo.
+                        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                        .fixedSize()
                         .padding(4)
                 }
             VStack(alignment: .leading, spacing: 4) {
@@ -174,7 +177,7 @@ struct CompressSheet: View {
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
+        AdaptiveStack {
             AssetThumbnail(asset: original.asset)
                 .frame(width: 96, height: 72)
                 .clipShape(.rect(cornerRadius: Theme.thumbRadius))

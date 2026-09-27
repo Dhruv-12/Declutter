@@ -6,6 +6,7 @@ import SwiftUI
 struct SwipeSortView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var drag: CGSize = .zero
     @State private var isFlying = false
     @State private var reviewPlan: CleanupPlan?
@@ -17,7 +18,8 @@ struct SwipeSortView: View {
     var body: some View {
         content
             .navigationTitle("Swipe to sort")
-            .navigationBarTitleDisplayMode(.large)
+            // With very large text the photo needs the room a large title would take.
+            .navigationBarTitleDisplayMode(typeSize.isAccessibilitySize ? .inline : .large)
             .safeAreaInset(edge: .bottom) {
                 if model.photoStatus.canRead && swipe.state == .ready && swipe.deck.count > 0 {
                     SelectionBar(count: swipe.marked.count, bytes: swipe.marked.totalSize, singular: "photo", plural: "photos") {
@@ -82,11 +84,19 @@ struct SwipeSortView: View {
 
             controls
 
-            Text("Swipe left to mark for deletion, right to keep.")
-                .font(.footnote)
-                .foregroundStyle(Theme.secondaryText)
-                .padding(.bottom, Theme.gap)
+            // With very large text the buttons carry this on their own (and VoiceOver reads the hint).
+            if !typeSize.isAccessibilitySize {
+                Text("Swipe left to mark for deletion, right to keep.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Theme.page)
+                    .padding(.bottom, Theme.gap)
+            }
         }
+        // The photo needs most of the screen, so the text around it stops growing a little earlier.
+        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
         .screenBackground()
     }
 
@@ -219,6 +229,9 @@ private struct PhotoCard: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
+                .lineLimit(1)
+                // A caption over the photo: it stops growing before it covers the photo.
+                .dynamicTypeSize(...DynamicTypeSize.accessibility1)
                 .padding(Theme.spacing)
                 .background(LinearGradient(colors: [.clear, .black.opacity(0.45)], startPoint: .top, endPoint: .bottom))
             }

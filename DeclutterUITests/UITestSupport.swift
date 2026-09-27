@@ -54,13 +54,9 @@ extension XCUIApplication {
     /// Scrolls the home screen until a tool tile is clear of the sticky bottom bar, then taps it.
     /// Tiles live in a lazy grid, so ones further down only exist once scrolled into view.
     func openTool(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
-        let tile = anyElement("tool.\(name)")
         XCTAssertTrue(category("screenshots").waitForExistence(timeout: 20), "Home screen didn't load", file: file, line: line)
-        var swipes = 0
-        while swipes < 8 && !(tile.exists && tile.isHittable && tile.frame.maxY < reviewBar.frame.minY - 8) {
-            swipeUp()
-            swipes += 1
-        }
+        let tile = anyElement("tool.\(name)")
+        scrollClearOfReviewBar(tile)
         XCTAssertTrue(tile.waitForExistence(timeout: 5), "Tile for \(name) missing", file: file, line: line)
         tile.tap()
     }
@@ -68,7 +64,25 @@ extension XCUIApplication {
     func openCategory(_ name: String, file: StaticString = #filePath, line: UInt = #line) {
         let row = category(name)
         XCTAssertTrue(row.waitForExistence(timeout: 20), "Home row for \(name) missing", file: file, line: line)
+        // On small screens the row can sit under the sticky bottom bar, which would take the tap.
+        scrollClearOfReviewBar(row)
         row.tap()
+    }
+
+    /// Scrolls until the element is on screen and above the sticky bottom bar: down the page
+    /// first, then back up if it was already scrolled past (big text makes the page long).
+    private func scrollClearOfReviewBar(_ element: XCUIElement) {
+        func clear() -> Bool {
+            element.exists && element.isHittable
+                && (!reviewBar.exists || element.frame.maxY < reviewBar.frame.minY - 8)
+        }
+        // Short drags without momentum, so a tall tile can't be skipped past between two stops.
+        func drag(_ distance: CGFloat) {
+            let start = coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+            start.press(forDuration: 0.05, thenDragTo: start.withOffset(CGVector(dx: 0, dy: distance)))
+        }
+        for _ in 0..<40 where !clear() { drag(-160) }
+        for _ in 0..<60 where !clear() { drag(160) }
     }
 
     func goBack() {

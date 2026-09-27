@@ -38,6 +38,8 @@ struct StorageWidgetView: View {
                 unavailable
             }
         }
+        // A widget has a fixed size, so its text stops growing at a size the layout can hold.
+        .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .containerBackground(for: .widget) { BrandColors.mist }
     }
 
@@ -92,6 +94,8 @@ struct StorageWidgetView: View {
             Text("free of \(summary.total)")
                 .font(.caption.weight(.medium))
                 .foregroundStyle(BrandColors.secondaryText)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
         }
     }
 

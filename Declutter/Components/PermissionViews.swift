@@ -31,7 +31,7 @@ struct PermissionBanners: View {
             }
         case .denied, .restricted:
             Banner(
-                icon: "photo.badge.exclamationmark", tint: .red,
+                icon: Symbols.photoAccessOff, tint: .red,
                 title: "Photo access is off",
                 message: "Turn on Photos access in Settings to scan screenshots, videos and similar photos."
             ) {

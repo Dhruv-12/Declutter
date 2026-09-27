@@ -4,6 +4,7 @@ import SwiftUI
 struct DashboardView: View {
     @Environment(AppModel.self) private var model
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var reviewPlan: CleanupPlan?
 
     /// The number in the headline. Normally the live value; counts down after a cleanup.
@@ -142,7 +143,9 @@ struct DashboardView: View {
             Text("Tools")
                 .font(.heading(.title3))
                 .foregroundStyle(Theme.pine)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            // Two tiles per row; one per row with very large text, so names aren't split mid-word.
+            let columns = typeSize.isAccessibilitySize ? 1 : 2
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: columns), spacing: 12) {
                 ForEach(Tool.allCases) { tool in
                     NavigationLink(value: tool) {
                         ToolTile(tool: tool, detail: toolDetail(tool))
@@ -362,35 +365,60 @@ private struct LegendItem: View {
 struct CategoryRow: View {
     let category: CleanupCategory
     let summary: CategorySummary
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        HStack(spacing: 14) {
-            Image(systemName: category.systemImage)
-                .font(.system(size: 18, weight: .semibold))
-                .tintedCircle(category.tint)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(category.title)
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(Theme.pine)
-                Text(detail)
-                    .font(.subheadline)
-                    .foregroundStyle(Theme.secondaryText)
+        Group {
+            if typeSize.isAccessibilitySize {
+                // Very large text: stack the row so the name gets the full width.
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        icon
+                        Spacer()
+                        chevron
+                    }
+                    titles
+                    trailing
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 14) {
+                    icon
+                    titles
+                    Spacer(minLength: 8)
+                    trailing
+                    chevron
+                }
             }
-
-            Spacer(minLength: 8)
-
-            trailing
-
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Theme.secondaryText)
         }
         .padding(.horizontal, Theme.spacing)
         .padding(.vertical, 14)
         .contentShape(.rect)
         .accessibilityElement(children: .combine)
         .accessibilityHint("Opens \(category.title.lowercased())")
+    }
+
+    private var icon: some View {
+        Image(systemName: category.systemImage)
+            .font(.system(size: 18, weight: .semibold))
+            .tintedCircle(category.tint)
+    }
+
+    private var titles: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(category.title)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(Theme.pine)
+            Text(detail)
+                .font(.subheadline)
+                .foregroundStyle(Theme.secondaryText)
+        }
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(Theme.secondaryText)
     }
 
     private var detail: String {
@@ -434,6 +462,7 @@ struct ToolTile: View {
     let tool: Tool
     /// Live status, such as "12 photos · 40 MB"; replaces the description when set.
     var detail: String? = nil
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -447,7 +476,8 @@ struct ToolTile: View {
                 Text(detail ?? tool.subtitle)
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
-                    .lineLimit(2, reservesSpace: true)
+                    // Two lines keep the grid even; one tile per row with big text, so no limit there.
+                    .lineLimit(typeSize.isAccessibilitySize ? 6 : 2, reservesSpace: !typeSize.isAccessibilitySize)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

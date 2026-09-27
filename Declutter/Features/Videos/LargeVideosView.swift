@@ -175,6 +175,9 @@ private struct VideoRow: View {
                             .padding(.horizontal, 4)
                             .padding(.vertical, 2)
                             .background(.black.opacity(0.55), in: .rect(cornerRadius: 4))
+                            // A badge on a small thumbnail: it stops growing before it outgrows the photo.
+                            .dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                            .fixedSize()
                             .padding(4)
                     }
             }
