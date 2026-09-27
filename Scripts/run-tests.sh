@@ -151,7 +151,7 @@ for phase in $PHASES; do
       run unit DeclutterTests ;;
     ui)
       fresh_device; seed standard; install_app; permissions grant
-      run ui DeclutterUITests/CategoryFlowUITests DeclutterUITests/ToolUITests DeclutterUITests/VaultUITests ;;
+      run ui DeclutterUITests/CategoryFlowUITests DeclutterUITests/ToolUITests ;;
     permissions)
       fresh_device; seed standard; install_app; permissions reset
       run permissions-ask DeclutterUITests/PermissionUITests/testFirstLaunchAsksForAccess

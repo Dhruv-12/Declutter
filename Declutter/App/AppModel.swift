@@ -36,7 +36,6 @@ final class AppModel {
     let swipe = SwipeSortModel()
     let blurry = BlurryPhotosModel()
     let compress = CompressVideosModel()
-    let vault = VaultModel()
     let contacts = ContactsModel()
 
     @ObservationIgnored private var libraryObserver: PhotoLibraryObserver?

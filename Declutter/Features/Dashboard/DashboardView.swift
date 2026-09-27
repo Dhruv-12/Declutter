@@ -177,12 +177,6 @@ struct DashboardView: View {
             return compress.records.isEmpty ? nil : "\(counted(compress.records.count, "video")) compressed"
         case .widget:
             return nil
-        case .vault:
-            switch model.vault.state {
-            case .needsSetup: return nil
-            case .locked: return "Locked"
-            case .unlocked: return "\(counted(model.vault.items.count, "photo")) · unlocked"
-            }
         }
     }
 
@@ -196,8 +190,6 @@ struct DashboardView: View {
             CompressVideosView()
         case .widget:
             WidgetGuideView()
-        case .vault:
-            VaultView()
         }
     }
 

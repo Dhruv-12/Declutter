@@ -91,18 +91,11 @@ final class ScreenTourUITests: XCTestCase {
         shot("13 Widget guide")
         app.goBack()
 
-        app.openTool("vault")
-        expectExists(app.buttons["pin.1"], timeout: 10)
-        shot("14 Vault PIN")
-        expectUsable(app.buttons["pin.0"], "PIN key 0")
-        expectUsable(app.buttons["pin.submit"], "PIN button")
-        app.goBack()
-
         // First launch.
         app.terminate()
         app = .launchDeclutter(onboarded: false)
         expectExists(app.staticTexts["Give your iPhone some breathing room"], timeout: 20)
-        shot("15 Onboarding")
+        shot("14 Onboarding")
         expectUsable(app.buttons["Continue"], "Continue button")
     }
 

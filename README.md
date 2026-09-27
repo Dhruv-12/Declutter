@@ -30,7 +30,6 @@ Supports iPhone, iOS 17.0 and later. Built in SwiftUI.
 - **Compress videos.** Makes a smaller copy (High quality, Balanced or Smallest), saves it to Photos
   next to the original, then offers to delete the original.
 - **Home Screen widget.** Small and medium widgets showing used and free space.
-- **Private vault.** Photos encrypted on the iPhone and locked with Face ID and a PIN.
 
 **Everywhere**
 
@@ -78,9 +77,8 @@ otherwise the original, plus the video of a Live Photo. That's what the Photos a
   their results are on screen. Contacts are never pre-selected.
 - **Merges never quietly drop data.** Every field apps are allowed to read is copied, and the
   preview shows the result first. Notes can't be read by apps, and the preview says so.
-- **Originals stay until you choose.** Compressing a video, or moving a photo into the vault, never
-  deletes the original. You're offered a review afterwards, and only for originals that were copied
-  successfully.
+- **Originals stay until you choose.** Compressing a video never deletes the original. You're
+  offered a review afterwards, and only when the smaller copy was saved successfully.
 
 ## Privacy
 
@@ -89,12 +87,6 @@ otherwise the original, plus the video of a Live Photo. That's what the Photos a
   Photos app would.
 - **Each permission is asked for with a clear reason.** "Denied" and "limited access" are handled,
   including adding more photos or contacts from inside the app.
-- **The private vault stays on this iPhone.**
-  - **Encryption:** each photo is encrypted with AES-GCM using a 256-bit key made on the iPhone.
-  - **The key:** kept in the Keychain for this device only, so it's never synced or backed up.
-  - **The files:** stored with complete file protection and left out of backups.
-  - **The PIN:** stored only as a salted PBKDF2 hash, and 5 wrong tries lock the vault for 30 seconds.
-  - **Locking:** the vault locks when the app goes to the background, and is hidden from the app switcher.
 - **The test library is generated.** The test photos, screenshots, videos and contacts are generated
   by `Scripts/generate-test-media.swift` when the tests run. No personal photos or contacts are in
   this repository.
@@ -108,6 +100,8 @@ otherwise the original, plus the video of a Live Photo. That's what the Photos a
 - **Calendar cleanup.** I built it, but its UI tests couldn't be made to pass on the simulator
   (calendar permissions set by the simulator tools didn't reach the app). Rather than ship something
   I couldn't verify, I removed it. It's still in the git history.
+- **Private vault.** I built it, then removed it: I prioritised the reliability of the core cleanup
+  loop over a riskier bonus feature. It's still in the git history.
 - **A TestFlight build.** TestFlight needs a paid Apple Developer Program membership, which I don't
   have. The app runs on a real iPhone through Xcode with a free account.
 - **Similar-photo tests on the simulator.** The iOS Simulator can't run Vision's image feature
@@ -118,12 +112,11 @@ otherwise the original, plus the video of a Live Photo. That's what the Photos a
 
 I built Declutter with Claude Code, working one feature at a time: it wrote the code, built it,
 committed it, and gave me steps to test on my iPhone before moving on. Every feature was checked on
-my own phone with my real library, and several real bugs were found that way:
+my own phone with my real library, and real bugs were found that way:
 
 - **File sizes.** They were exaggerated because every file behind a photo was added up.
 - **Scans that silently found nothing.** A Photos query that matched nothing left the similar and
   blurry scans with no photos.
-- **Vault errors.** Adding photos stored in iCloud to the vault failed, with no reason given.
 
 Along the way it also:
 
